@@ -1,8 +1,15 @@
-vars <- TGH_ID %>%
-  select(mean_AC, mean_VB, mean_idx_water, mean_Slope_talweg, 
-         Sinuosity_meander, mean_ACW_star, mean_elevation,
-         mean_idx_conf,mean_enveloppe,multi_chenal,
-         iles_veget,Delta_AC_relatif) %>%
+tgh_stre <- TGH_ID %>%
+  filter(Sinuosity_meander <= 10) %>%
+  mutate(mean_idx_water = ifelse(mean_idx_water < 0, 0, mean_idx_water))
+
+# tgh_2 <- tgh_stre %>%
+#   st_drop_geometry()
+
+vars <- tgh_stre %>%
+  select(mean_idx_water, mean_Slope_talweg, 
+         Sinuosity_meander, mean_ACW_star
+         # , mean_stream_power
+         ) %>%
   st_drop_geometry()
 
 
@@ -18,12 +25,12 @@ hc <- hclust(d, method = "ward.D2")
 plot(hc, labels = FALSE, hang = -1, main = "Classification hiérarchique (CAH)")
 
 # 6️⃣ Découper en k classes (par ex. 3 classes)
-clusters <- cutree(hc, k = 8)
+clusters <- cutree(hc, k = 10)
 
 # 7️⃣ Ajouter le résultat au dataframe
-TGH_ID$cluster <- as.factor(clusters)
+tgh_stre$cluster <- as.factor(clusters)
 
-st_write(TGH_ID, "TGH_ID_cluster.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(tgh_stre, "TGH_ID_cluster.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
@@ -31,10 +38,12 @@ st_write(TGH_ID, "TGH_ID_cluster.gpkg", delete_layer = TRUE) # Export des donné
 library(ggplot2)
 
 # Préparation des données pour le boxplot
-df_plot <- TGH_ID %>%
+df_plot <- tgh_stre %>%
   st_drop_geometry() %>%
-  select(cluster, mean_AC, mean_VB, mean_idx_water, mean_Slope_talweg, 
-         Sinuosity_meander, mean_ACW_star)
+  select(cluster, mean_idx_water, mean_Slope_talweg, 
+         Sinuosity_meander, mean_ACW_star
+         # ,mean_stream_power
+         )
 
 # Mise en format long (tidy)
 df_long <- df_plot %>%
@@ -43,9 +52,442 @@ df_long <- df_plot %>%
 # Boxplot ggplot
 ggplot(df_long, aes(x = cluster, y = valeur, fill = cluster)) +
   geom_boxplot(outlier.shape = 16, outlier.alpha = 0.4) +
-  facet_wrap(~ variable, scales = "free_y") +
+  facet_wrap(~ variable, scales = "free_y", ncol = 2) +
   labs(title = "Distribution des métriques par cluster (CAH)",
        x = "Cluster", y = "Valeur") +
   theme_minimal() +
   theme(legend.position = "none",
         strip.text = element_text(face = "bold"))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(sf)
+library(dplyr)
+library(caret)
+library(randomForest)
+
+# ----------------------------
+# 1️⃣ Lecture + nettoyage
+# ----------------------------
+test <- st_read("label_aic.gpkg") 
+
+# Colonnes inutiles
+colonnes_a_exclure <- c(
+  "ID_segment", "toponyme", "nb_DGO", "axis", "source",
+  "sum_length", "length_meander", "drainage_area", "roe",
+  "mean_enveloppe", "Delta_AC", "Lag_AC",
+  "Delta_AC_relatif", "Lag_AC_relatif", "measure",
+  "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
+  "mean_amplitude" 
+  )
+
+#e ajout de nouvelle colonne depuis TGH
+test <- test %>%
+  mutate(nb_0_na = TGH$nb_WC_0_or_na,
+         zero_na_pct = nb_0_na / nb_DGO * 100
+  )
+
+
+
+# 
+# 
+# # test en filtrant donnée
+# test <- st_read("label_aic.gpkg")
+# 
+# test <- test %>%
+#   mutate(nb_0_na = TGH$nb_WC_0_or_na,
+#          zero_na_pct = nb_0_na / nb_DGO * 100
+#   )
+# 
+# test <- test %>%
+#   filter(!mean_AC < 4,
+#          !retenue > 0.4,
+#          !zero_na_pct > 34,
+#          !label == "Retenue",
+#          !label == "Pas de lit",
+#          !label == "Lit sans eau"
+#          )
+# 
+# # Colonnes inutiles
+# colonnes_a_exclure <- c(
+#   "ID_segment", "toponyme", "nb_DGO", "axis", "source",
+#   "sum_length", "length_meander", "drainage_area", "roe",
+#   "mean_enveloppe", "Delta_AC", "Lag_AC",
+#   "Delta_AC_relatif", "Lag_AC_relatif", "measure",
+#   "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
+#   "mean_amplitude" , "retenue", "mean_AC", "zero_na_pct",
+#   "mean_elevation", "mean_Slope_VB"
+# )
+
+
+# 
+# 
+# test en filtrant donnée
+test <- st_read("label_aic.gpkg")
+
+test <- test %>%
+  mutate(nb_0_na = TGH$nb_WC_0_or_na,
+         zero_na_pct = nb_0_na / nb_DGO * 100
+  )
+
+test <- test %>%
+  filter(
+    mean_AC >= 4,
+    retenue <= 0.4,
+    !label %in% c("Retenue", "retenue", "Pas de lit")
+  )
+
+# Colonnes inutiles
+colonnes_a_exclure <- c(
+  "ID_segment", "toponyme", "nb_DGO", "axis", "source",
+  "sum_length", "length_meander", "drainage_area", "roe",
+  "mean_enveloppe", "Delta_AC", "Lag_AC",
+  "Delta_AC_relatif", "Lag_AC_relatif", "measure",
+  "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
+  "mean_amplitude" , "retenue", "mean_Slope_VB"
+)
+
+
+
+
+test_clean <- test %>% 
+  st_drop_geometry() %>%
+  drop_na(label) %>%
+  select(-all_of(colonnes_a_exclure))
+
+test_clean$label <- factor(test_clean$label)
+
+# ----------------------------
+# 2️⃣ Split train/test
+# ----------------------------
+set.seed(123)
+index <- createDataPartition(test_clean$label, p = 0.75, list = FALSE)
+
+train <- test_clean[index, ]
+testset <- test_clean[-index, ]
+
+table(test$label)
+
+
+# ----------------------------
+# 3️⃣ Random Forest
+# ----------------------------
+modele_foret <- randomForest(
+  label ~ .,
+  data = train,
+  importance = TRUE,
+  ntree = 500,
+  mtry = floor(sqrt(ncol(train) - 1))
+)
+
+# ----------------------------
+# 4️⃣ Évaluation
+# ----------------------------
+pred_test <- predict(modele_foret, newdata = testset)
+
+confusion <- confusionMatrix(pred_test, testset$label)
+print(confusion)
+
+# Convertir la matrice de confusion en data frame ggplot-compatible
+conf_df <- as.data.frame(confusion$table)
+
+colnames(conf_df) <- c("Reference", "Prediction", "Freq")
+
+# Calculer pourcentages par vrai label (row-wise)
+conf_df <- conf_df %>%
+  group_by(Reference) %>%
+  mutate(Percent = Freq / sum(Freq) * 100)
+
+# Heatmap
+ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 5) +
+  scale_fill_gradient(low = "#f7fbff", high = "#08306b") +
+  labs(
+    title = "Matrice de confusion – Random Forest",
+    x = "Vrai label",
+    y = "Label prédit",
+    fill = "% par classe"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "right"
+  )
+
+# ----------------------------
+# 5️⃣ Importance des variables
+# ----------------------------
+print(importance(modele_foret))
+varImpPlot(modele_foret, type = 1)
+
+
+
+# ----------------------------
+# 6️⃣ Application & Probabilités
+# ----------------------------
+
+# On applique le modèle sur l'ensemble du jeu de données nettoyé (ou sur de nouvelles données)
+# 1. Prédire la CLASSE (ce que tu faisais déjà)
+pred_class <- predict(modele_foret, newdata = test, type = "response")
+
+# 2. Prédire les PROBABILITÉS (ce qui te manque)
+# Cela renvoie une matrice avec une colonne par classe
+pred_prob_matrix <- predict(modele_foret, newdata = test, type = "prob")
+
+
+# 3. Extraire la probabilité de la classe gagnante (la "certitude")
+# Pour chaque ligne, on prend la valeur maximale de la matrice de probabilités
+max_prob <- apply(pred_prob_matrix, 1, max)
+
+# 4. Tout assembler dans un nouveau dataframe
+resultat_final <- test %>%
+  mutate(
+    Prediction = pred_class,       # La classe prédite
+    Probabilite = max_prob         # Le % de certitude (entre 0 et 1)
+  )
+
+# --- Optionnel : Voir les résultats ---
+head(resultat_final %>% select(label, Prediction, Probabilite))
+
+# --- Optionnel : Visualiser la distribution de la confiance ---
+library(ggplot2)
+ggplot(resultat_final, aes(x = Probabilite, fill = Prediction)) +
+  geom_histogram(bins = 30, color = "white", alpha = 0.7) +
+  labs(
+    title = "Distribution de la certitude du modèle",
+    x = "Probabilité (Certitude)",
+    y = "Nombre d'observations"
+  ) +
+  theme_minimal()
+
+
+
+st_write(resultat_final, "TGH_RF2.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ============================================================
+# 7️⃣ Méthode du Modèle Substitut (Arbre unique interprétable)
+# ============================================================
+
+# Installation des paquets nécessaires si tu ne les as pas
+if(!require(rpart)) install.packages("rpart")
+if(!require(rpart.plot)) install.packages("rpart.plot")
+
+library(rpart)
+library(rpart.plot)
+
+# 1. Préparation des données pour le substitut
+# On repart des données d'entraînement (train)
+data_surrogate <- train
+
+# ⚠️ IMPORTANT : La cible devient la PRÉDICTION de la Random Forest
+# On remplace le vrai label par ce que la forêt pense
+data_surrogate$Target_Foret <- predict(modele_foret, newdata = train)
+
+# On supprime le vrai label original pour ne pas confondre le modèle
+data_surrogate$label <- NULL 
+
+# 2. Entraînement de l'arbre unique (CART)
+# On limite la profondeur (maxdepth) pour qu'il reste lisible (c'est le but !)
+# cp (complexity parameter) aide aussi à élaguer les branches inutiles
+arbre_substitut <- rpart(
+  Target_Foret ~ ., 
+  data = data_surrogate, 
+  method = "class",       # Car c'est une classification
+  control = rpart.control(maxdepth =7, cp = 0.005) 
+)
+
+# 3. Visualisation de l'arbre "moyen"
+# C'est cet arbre que tu pourras montrer pour expliquer la logique globale
+rpart.plot(
+  arbre_substitut, 
+  type = 2, 
+  extra = 104,  # Affiche les pourcentages par classe
+  under = TRUE, # Met le nom de la classe sous la boîte
+  faclen = 0,   # Affiche les noms complets des variables
+  main = "Arbre Substitut : La logique simplifiée de la Random Forest",
+  box.palette = "BuGn"
+)
+
+# 4. Vérification de la "Fidélité"
+# À quel point cet arbre unique respecte-t-il la forêt ?
+# On compare les prédictions de l'arbre unique vs celles de la forêt
+pred_substitut <- predict(arbre_substitut, type = "class")
+
+fidélité <- confusionMatrix(pred_substitut, data_surrogate$Target_Foret)
+
+cat("\n--- FIDÉLITÉ DU MODÈLE SUBSTITUT ---\n")
+cat("Cet arbre unique reproduit les décisions de la forêt à : ", 
+    round(fidélité$overall['Accuracy'] * 100, 2), "%\n")
+
+
+# dev.off()
+
+
+while (!is.null(dev.list())) dev.off()
+dev.list()
+
+
+pdf("arbre_substitut1.pdf", width = 15, height = 12)
+rpart.plot(arbre_substitut,
+           type = 2,
+           extra = 104,
+           under = TRUE,
+           faclen = 0,
+           box.palette = "BuGn",
+           main = "Arbre Substitut")
+dev.off()
+# browseURL(getwd())
+
+while (!is.null(dev.list())) dev.off()
+dev.list()
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------
+# 6️⃣ Application Avancée : Récupérer le Podium (1er, 2ème, 3ème)
+# ------------------------------------------------------------------
+
+# 1. Générer la matrice complète des probabilités (1 colonne par classe)
+probs_matrix <- predict(modele_foret, newdata = test, type = "prob")
+
+# 2. Fonction pour extraire le podium d'une ligne
+get_podium <- function(row_probs) {
+  # On trie les index du plus grand au plus petit
+  ordered_idx <- order(row_probs, decreasing = TRUE)
+  
+  # On récupère les noms des classes et les valeurs
+  # (On gère le cas où il y aurait moins de 3 classes au total)
+  n_classes <- length(row_probs)
+  
+  c1 <- if(n_classes >= 1) names(row_probs)[ordered_idx[1]] else NA
+  p1 <- if(n_classes >= 1) row_probs[ordered_idx[1]] else NA
+  
+  c2 <- if(n_classes >= 2) names(row_probs)[ordered_idx[2]] else NA
+  p2 <- if(n_classes >= 2) row_probs[ordered_idx[2]] else NA
+  
+  c3 <- if(n_classes >= 3) names(row_probs)[ordered_idx[3]] else NA
+  p3 <- if(n_classes >= 3) row_probs[ordered_idx[3]] else NA
+  
+  return(c(c1, p1, c2, p2, c3, p3))
+}
+
+# 3. Appliquer cette fonction à chaque ligne (c'est rapide)
+# Le résultat est une matrice de caractères
+podium_matrix <- t(apply(probs_matrix, 1, get_podium))
+
+# On nomme les colonnes proprement
+colnames(podium_matrix) <- c("Class_1", "Prob_1", "Class_2", "Prob_2", "Class_3", "Prob_3")
+
+# 4. Convertir en Data Frame et remettre les types numériques
+podium_df <- as.data.frame(podium_matrix, stringsAsFactors = FALSE)
+podium_df$Prob_1 <- as.numeric(podium_df$Prob_1)
+podium_df$Prob_2 <- as.numeric(podium_df$Prob_2)
+podium_df$Prob_3 <- as.numeric(podium_df$Prob_3)
+
+# 5. Fusionner avec tes données spatiales d'origine
+resultat_detaille <- bind_cols(test, podium_df)
+
+# --- Vérification ---
+head(resultat_detaille %>% 
+       select(Class_1, Prob_1, Class_2, Prob_2, Class_3, Prob_3), 10)
+
+# 6. Export
+st_write(resultat_detaille, "TGH_RF_Podium.gpkg", delete_layer = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 2️⃣ Construction de l'arbre
+modele_arbre <- rpart(
+  label ~ .,                # Prédire label en utilisant toutes les autres colonnes sélectionnées
+  data = test_clean,
+  method = "class",         # "class" car c'est une classification (pas des chiffres continus)
+  cp = 0.005                # Paramètre de complexité (voir explication plus bas)
+)
+
+# 3️⃣ Visualisation (Le graphique que tu aimes)
+# type = 4 : dessine tous les nœuds
+# extra = 104 : affiche les probabilités pour chaque classe + le % d'observations
+rpart.plot(
+  modele_arbre, 
+  type = 4, 
+  extra = 104, 
+  under = TRUE,    # Met le label sous la boîte pour plus de lisibilité
+  cex = 0.7,       # Taille du texte (réduis si ça se chevauche)
+  box.palette = "auto"
+)
+
+
+while (!is.null(dev.list())) dev.off()
+dev.list()
+
+
+pdf("arbre_simple.pdf", width = 15, height = 12)
+rpart.plot(
+  modele_arbre, 
+  type = 4, 
+  extra = 104, 
+  under = TRUE,    # Met le label sous la boîte pour plus de lisibilité
+  cex = 0.7,       # Taille du texte (réduis si ça se chevauche)
+  box.palette = "auto"
+)
+dev.off()
+
+
+
+

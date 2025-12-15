@@ -1,4 +1,5 @@
-
+library(changepoint)
+library(stringr)
 
 
 run_pelt_mean <- function(values) {
@@ -8,8 +9,8 @@ run_pelt_mean <- function(values) {
       values,
       method = "PELT",
       penalty = "Manual",
-      # pen.value = 1,
-      pen.value = "0.5*log(n)",  # BIC
+      # pen.value = 2,
+      pen.value = "0.4*log(n)",  # BIC
       minseglen = 4  # 4 pour avoir au moins 3 segments valides
     )
     
@@ -41,12 +42,12 @@ run_pelt_mean <- function(values) {
 run_pelt_meanvar <- function(values) {
   result <- tryCatch({
     # Analyse de changement de moyenne avec PELT
-    cpt_result_pelt <- cpt.meanvar(
+    cpt_result_pelt <- cpt.mean(
       values,
       method = "PELT",
-      penalty = "Manual",
+      penalty = "AIC",
       # pen.value = 1,
-      pen.value = "2.5*log(n)",  # BIC
+      # pen.value = "1.25*log(n)",  # BIC
       minseglen = 4  # 4 pour avoir au moins 3 segments valides
     )
     

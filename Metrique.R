@@ -18,6 +18,10 @@ library(randomForest)
 library(units)
 library(concaveman)
 
+# options(scipen = 999)
+# options(scipen = 0)
+
+# Data$axis <- as.numeric(Data$axis)
 
 # ============================================
 # 2. Génération d'un tableau 
@@ -52,25 +56,12 @@ metrique <- metrique %>%
 metrique <- metrique %>%
   mutate(WC = Data$water_channel_width)
 
-# ============================================
-# 7. Idx_eau
-# ============================================
-metrique <- metrique %>%
-  mutate(
-    idx_water = case_when(
-      AC == 0 & WC == 0 ~ -1,    # pas de données → ignorer pour les moyennes
-      WC == 0 & AC > 0 ~ 0,      # vrai 0
-      TRUE ~ WC / AC             # ratio normal
-    )
-  )
-
 
 # ============================================
 # 6. Slope Talweg
 # ============================================
 metrique <- metrique %>%
-  mutate(Slope_talweg = Data$talweg_slope)
-
+  mutate(Slope_talweg = ifelse(Data$talweg_slope < 0, 0.0001, Data$talweg_slope))
 
 # ============================================
 # 6. slope_VB
@@ -85,14 +76,6 @@ metrique <- metrique %>%
   mutate(elevation = Data$talweg_elevation_min)
 
 
-# ============================================
-# 8. step AC
-# ============================================
-metrique <- metrique %>%
-  group_by(axis) %>%
-  # arrange(measure) %>%
-  mutate(Delta_AC = lag(AC) - AC) %>%
-  ungroup()
 
 # ============================================
 # 9. Surface drainée
@@ -117,11 +100,6 @@ metrique <- metrique %>%
     by = c("axis", "measure_medial_axis")
   )
 
-# ============================================ 
-# 10. ACW*
-# ============================================
-metrique <- metrique %>%
-  mutate(ACW_star = AC / (drainage_area^0.44))
 
 # ============================================
 # 11. Sinuosité
@@ -203,7 +181,7 @@ enveloppe <- st_read("enveloppe_concave.gpkg") %>%
   group_by(AXIS, M) %>%
   filter(if(n() > 1) VALUE == 2 else TRUE) %>%
   ungroup() %>%
-  dplyr::select(-VALUE)
+  dplyr::select(-VALUE, -axis_2)
 
 metrique <- metrique %>%
   left_join(enveloppe, by = c("axis"= "AXIS", "measure_medial_axis" ="M"))
@@ -212,7 +190,13 @@ metrique <- metrique %>%
 # 13. Multi-chenal
 # ============================================
 # Import du fichier CSV contenant les métriques de forme
-chenal_forme <- read.csv("chenal_props_v2.csv")
+chenal_forme_rhone <- read.csv("chenal_props_rhone.csv")
+chenal_forme_med <- read.csv("chenal_props_med.csv")
+chenal_forme_corse <- read.csv("chenal_props_corse.csv")
+
+chenal_forme_total <- rbind(chenal_forme_rhone,
+                            chenal_forme_med,
+                            chenal_forme_corse)
 
 # Import du shapefile avec labels DGO
 chenal_labels <- st_read("DGO_label.shp") %>%
@@ -224,7 +208,7 @@ chenal_labels <- st_read("DGO_label.shp") %>%
   ungroup()
 
 # Fusion des propriétés de forme et des labels
-chenal_complet <- chenal_forme %>%
+chenal_complet <- chenal_forme_total %>%
   left_join(chenal_labels, by = c("AXIS", "M"))
 
 # Colonnes à exclure des prédicteurs
@@ -310,9 +294,9 @@ barrage <- roe %>%
   rename(measure = distance_axis)
 
 calcul_distance <- function(discon, points, colname) {
-  
+
   colname_sym <- rlang::sym(colname)
-  
+
   discon %>%
     dplyr::rowwise() %>%
     dplyr::mutate(
@@ -357,16 +341,115 @@ metrique <- metrique %>%
 
 
 # ============================================
+# . Retenue
+# ============================================
+retenue <- st_read("retenue.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M) %>%
+  rename(axis = AXIS, measure_medial_axis = M) %>%
+  distinct()
+
+metrique <- metrique %>%
+  left_join(retenue %>% 
+              mutate(reservoir = 2), 
+            by = c("axis", "measure_medial_axis")) %>%
+  mutate(reservoir = ifelse(is.na(reservoir), 1, reservoir))
+
+
+# ============================================
+# . amplitude
+# ============================================
+ampli <- st_read("amplitude.gpkg") %>%
+  st_drop_geometry() %>%
+  select(axis, measure, amplitude) 
+
+metrique <- metrique %>%
+  inner_join(ampli, by = c("axis", "measure"))
+
+
+
+# ============================================
 # 13. Interpolation des NA
 # ============================================
 
-metrique <- metrique %>%  
+metrique <- metrique %>%
   group_by(axis) %>%
   mutate(across(where(is.numeric) & !matches("measure_medial_axis"),
               ~ na.approx(.x, na.rm = FALSE)))%>%
   filter(!is.na(AC))%>%
   ungroup()
 
+  
+# ============================================
+# 7. Idx_eau
+# ============================================
+metrique <- metrique %>%
+  mutate(
+    idx_water = case_when(
+      AC == 0 & WC == 0 ~ -1,    # pas de données → ignorer pour les moyennes
+      WC == 0 & AC > 0 ~ 0,      # vrai 0
+      TRUE ~ WC / AC             # ratio normal
+    )
+  )
+
+# ============================================
+# 8. step AC
+# ============================================
+metrique <- metrique %>%
+  group_by(axis) %>%
+  # arrange(measure) %>%
+  mutate(Delta_AC = lag(AC) - AC) %>%
+  ungroup()
+
+# ============================================ 
+# 10. ACW*
+# ============================================
+metrique <- metrique %>%
+  mutate(ACW_star = AC / (drainage_area^0.44))
+
+
+# ============================================ 
+# 10. Stream power
+# ============================================
+bassin <- st_read("bassin_stream.gpkg") %>%
+  st_drop_geometry() 
+
+debit <- metrique %>%
+  left_join(bassin, by = c("axis"))
+
+debit <- debit %>%
+  mutate(Q = A * (drainage_area^B),
+         pente_mm = Slope_talweg / 100, # conversion en m/m
+         pente_cmkm = pente_mm * 100000) # conversion en cm/km
+
+debit <- debit %>%
+  group_by(axis) %>%
+  mutate(
+    pente_m_moy = rollapply(
+      pente_mm,
+      width = 5,
+      FUN = mean,
+      align = "center",
+      fill = NA
+    ),
+    # si pente_m_moy est NA, on met pente_mm
+    pente_m_moy = ifelse(is.na(pente_m_moy), pente_mm, pente_m_moy)
+  ) %>%
+  ungroup() %>%
+  mutate(stream_power = ((9800*Q*pente_mm)/AC),
+         stream_power_mm = ((9800*Q*pente_m_moy)/AC))
+  
+
+metrique <- metrique %>%
+  mutate(stream_power = debit$stream_power,
+         stream_power_mm = debit$stream_power_mm,
+         Q = debit$Q)
+
+
+# metrique <- metrique %>%
+#   filter(!is.na(stream_power) & !is.infinite(stream_power))
+  
+  
 # sum(is.na(metrique$AC), na.rm = TRUE) # vérifier qu'il n'y a plus de NA
 # sum(is.na(metrique$VB), na.rm = TRUE) # vérifier qu'il n'y a plus de NA
 # sum(is.na(metrique$measure_medial_axis), na.rm = TRUE) # vérifier qu'il n'y a plus de NA
@@ -374,11 +457,13 @@ metrique <- metrique %>%
 # ============================================
 # 14. supprimer les df temporaires
 # ============================================
-rm(chenal_complet, chenal_resultats, chenal_forme, chenal_labels, donnees_connues, 
+rm(chenal_complet, chenal_resultats, chenal_forme_corse, chenal_forme_med,
+   chenal_forme_rhone, chenal_forme_total ,chenal_labels, donnees_connues, 
    donnees_inconnues,donnees_propres, jeu_entrainement, jeu_test, modele_foret, 
-   predictions_complet, predictions_test, surface_drainee, SIN, Data_sf, Data_sf_proj,
+   predictions_complet, predictions_test, surface_drainee, surface_drainee_corse,
+  surface_drainee_med, surface_drainee_rhone,surface_drainee_totale, SIN, Data_sf, Data_sf_proj,
    barrage, enveloppe, matrice_confusion, index_entrainement, colonnes_a_exclure,
-   calculate_angles_sf, calcul_distance,iles)
+   calculate_angles_sf, calcul_distance,iles, retenue)
   
 
 # ============================================

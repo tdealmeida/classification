@@ -11,22 +11,22 @@ metrique <- metrique %>%
 
 AC <- metrique %>%
   group_by(axis) %>%
-  arrange(desc(measure)) %>%
-  summarize(run_pelt_mean(log_AC)) %>%
+  arrange(measure) %>%
+  summarize(run_pelt_meanvar(log_AC)) %>%
   filter(cpt > 0) %>%
   mutate(source = "AC")
 
 VB <- metrique %>%
   group_by(axis) %>%
-  arrange(desc(measure)) %>%
-  summarize(run_pelt_mean(log_VB)) %>%
+  arrange(measure) %>%
+  summarize(run_pelt_meanvar(log_VB)) %>%
   filter(cpt > 0) %>%
   mutate(source = "VB")
 
 SIN <- metrique %>%
   group_by(axis) %>%
-  arrange(desc(measure)) %>%
-  summarize(run_pelt_meanvar(na.omit(angle_deg))) %>%
+  arrange(measure) %>%
+  summarize(run_pelt_meanvar(na.omit(log_SIN))) %>%
   filter(cpt > 0) %>%
   mutate(source = "SIN")
 
@@ -59,7 +59,7 @@ sum(unlist(VB$cpt))
 sum(unlist(SIN$cpt))
 
 
-# combined <- bind_rows(VB)
+# combined <- bind_rows(SIN)
 combined <- bind_rows(AC, VB, SIN)
 
 rupture <- combined %>%
@@ -76,7 +76,7 @@ axis_list <- unique(rupture$axis)
 metrique_filtre <- metrique %>%
   filter(axis %in% axis_list)
 
-# # Fonction pour majorité
+# # # Fonction pour majorité
 # majority_cat <- function(x) {
 #   counts <- tabulate(x, nbins = 2)
 #   ifelse(counts[1] > counts[2], 1, 2)
@@ -104,7 +104,7 @@ process_toponyme <- function(top) {
   
   subdata <- metrique_filtre %>%
     filter(axis == top) %>%
-    arrange(desc(measure))  # ⚡ trier par measure avant de créer les segments
+    arrange(measure)  # ⚡ trier par measure avant de créer les segments
   
   # Préparer vecteurs
   segment <- rep(0, nrow(subdata))
@@ -124,7 +124,7 @@ process_toponyme <- function(top) {
   # Construire les segments
   subdata <- subdata %>%
     mutate(
-      ID_segment = cumsum(segment) + 1,
+      ID_segment = cumsum(segment) + 1 - segment,
       source_cpt = source_segment
     )
   
@@ -138,25 +138,32 @@ process_toponyme <- function(top) {
       measure = last(measure),
       source = paste(na.omit(unique(source_cpt)), collapse = "+"),
       mean_idx_water = safe_mean_idx_water(idx_water),
-      across(c(AC, VB, WC, Slope_talweg, Slope_VB, elevation, idx_conf, ACW_star, 
-               enveloppe, angle_deg), 
+      across(c(AC, VB, WC, 
+               Slope_talweg, Slope_VB, elevation, idx_conf,
+               ACW_star, 
+               enveloppe,
+               amplitude,
+               # stream_power,
+               angle_deg), 
              ~ mean(.x, na.rm = TRUE), .names = "mean_{.col}"),
+      nb_WC_0_or_na = sum(WC == 0 | is.na(WC)),
       # multi_chenal = majority_cat(multi_chenaux),   # ✅ majorité au lieu de moyenne
       # iles_veget = majority_cat(ile_vege),       # ✅ majorité au lieu de moyenne
-      multi_chenal = value_pct(multi_chenaux, val = 2),   # ✅ %
-      iles_veget = value_pct(ile_vege, val = 2),       # ✅ %
+      multi_chenal = value_pct(multi_chenaux, val = 2),   #
+      iles_veget = value_pct(ile_vege, val = 2),       #
+      retenue = value_pct(reservoir, val = 2),       #
       roe = min(roe, na.rm = TRUE),               # ✅ min au lieu de moyenne
       sum_length = sum(length, na.rm = TRUE),
-      sum_drainage_area = sum(drainage_area, na.rm = TRUE),
+      drainage_area = max(drainage_area, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     arrange(ID_segment) %>%  # pour que lag() ait du sens
-    mutate(Delta_AC = lead(mean_AC) - mean_AC,
-           Log_AC = lag(mean_AC)-mean_AC,
-           Delta_AC_relatif = (lead(mean_AC) - mean_AC) / mean_AC * 100,   # variation relative %
-           Lag_AC_relatif = (mean_AC - lag(mean_AC)) / lag(mean_AC) * 100
-           )
-  
+    mutate(Delta_AC = lag(mean_AC) - mean_AC,
+           Lag_AC = mean_AC - lead(mean_AC),
+           Delta_AC_relatif = ((lag(mean_AC)-mean_AC) / mean_AC) * 100,  # variation relative vs ligne précédente
+           Lag_AC_relatif = ((mean_AC - lead(mean_AC)) / lead(mean_AC)) * 100      # variation relative vs ligne suivante
+    )
+
   list(res = res, subdata = subdata)
 }
 
@@ -188,47 +195,48 @@ Data_points <- ALL_SUBDATA %>%
   mutate(geom = st_zm(geom, drop = TRUE, what = "ZM")) %>%
   ungroup() %>%
   group_by(axis) %>%
-  slice(-1) %>%   # <-- supprime le dernier point car sinon crée un point de rupture pour le premier segment amont
+  slice_head(n = -1) %>%  #
+  # slice(-1) %>%   # <-- supprime le dernier point car sinon crée un point de rupture pour le premier segment amont
   ungroup() %>%
   st_transform(2154)
 
 
-st_write(Data_points, "rupture.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(Data_points, "Rupture.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
 rm(all_results, axis_list, combined, i, process_toponyme, rupture_top,
   filter_tol_sources, metrique_filtre, segment, source_segment, subdata, top,
-  majority_cat)
+  majority_cat, value_pct, safe_mean_idx_water)
 
 
 
-
-Test <- SIN %>%
-  filter(axis == "2000800882")
-test <- metrique %>%
-  filter(axis == "2000800882") %>%
-  arrange(desc(measure)) %>%
-  mutate(ID = row_number()) 
-
-ggplot(test, aes(x = ID, y = angle_deg)) +
-  geom_line() +
-  geom_vline(xintercept = unlist(Test$cp), color = "red", linetype = "dashed") +
-  theme_minimal()
-
-
-ggplot(test, aes(x = ID, y = VB)) +
-  geom_line() +
-  geom_vline(xintercept = unlist(Test$cp), color = "red", linetype = "dashed") +
-  scale_x_continuous(
-    name = "measure",
-    breaks = c(50, 100),                                  # positions sur ID
-    labels = round(test$measure[c(50, 100)], 2)            # valeurs correspondantes
-  ) +
-  theme_minimal()
-
-
-length(test$VB)
-0.5*log(500)
-write.csv(test, "test_sinuosity.csv", row.names = FALSE)
+# 
+# Test <- SIN %>%
+#   filter(axis == "2000800882")
+# test <- metrique %>%
+#   filter(axis == "2000800882") %>%
+#   arrange(desc(measure)) %>%
+#   mutate(ID = row_number()) 
+# 
+# ggplot(test, aes(x = ID, y = angle_deg)) +
+#   geom_line() +
+#   geom_vline(xintercept = unlist(Test$cp), color = "red", linetype = "dashed") +
+#   theme_minimal()
+# 
+# 
+# ggplot(test, aes(x = ID, y = VB)) +
+#   geom_line() +
+#   geom_vline(xintercept = unlist(Test$cp), color = "red", linetype = "dashed") +
+#   scale_x_continuous(
+#     name = "measure",
+#     breaks = c(50, 100),                                  # positions sur ID
+#     labels = round(test$measure[c(50, 100)], 2)            # valeurs correspondantes
+#   ) +
+#   theme_minimal()
+# 
+# 
+# length(test$VB)
+# 0.5*log(500)
+# write.csv(test, "test_sinuosity.csv", row.names = FALSE)
 
