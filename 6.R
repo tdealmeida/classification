@@ -1,14 +1,30 @@
 test<- metrique %>%
-  filter(axis == "2000801955") %>%
+  filter(axis == "2000788975") %>%
+  arrange(measure) %>%
   mutate(id = row_number())
 
-values <- na.omit(test$log_AC)
+
+test <- st_read("sinu_ognon.gpkg") %>%
+  filter(toponyme %in% c("l'Ognon")) %>%
+  arrange(measure) %>%
+  mutate(ampitude = na.approx(ampitude, na.rm = FALSE)) %>%
+  mutate(id = row_number(),
+         log_amp = log(ifelse(ampitude == 0, 0.1, ampitude)+1),
+         log_sin = log(ifelse(angle_deg == 0, 0.1, angle_deg)+1),
+         log_AC = log(ifelse(AC == 0, 0.1, AC)+1) ,
+         log_VB = log(ifelse(VB == 0, 0.1, VB)+1)
+         )
+
+
+
+
+values <- na.omit(test$log_amp)
 cpt_result_pelt <- cpt.mean(
   values,
   method = "PELT",
-  penalty = "Manual",
-  # pen.value = 1,
-  pen.value = "0.5*log(n)",  # BIC
+  penalty = "AIC",
+  # pen.value = 2,
+  # pen.value = "0.4*log(n)",  # BIC
   minseglen = 4  # 4 pour avoir au moins 3 segments valides
 )
 
@@ -19,14 +35,17 @@ length(cpt_pelt)
 
 
 ggplot() +
-  geom_line(data = test, aes(x = id, y = AC), color = "grey") +
-  geom_point(data = test, aes(x = id, y = AC), color = "black") +
-  geom_vline(aes(xintercept = rupture$cp), linetype = "dashed", color = "red") +
+  geom_line(data = test, aes(x = id, y = log_sin), color = "grey") +
+  geom_point(data = test, aes(x = id, y = log_sin), color = "black") +
+  geom_vline(aes(xintercept = cpt_pelt), linetype = "dashed", color = "red") +
+  # geom_vline(aes(xintercept = r$cp), linetype = "dashed", color = "red") +
   labs(title = "Changement de comportement de la métrique d'angle pour l'Ain (SIN)",
        x = "Step",
        y = "Measure") +
   theme_minimal()
 
+r <- rupture %>%
+  filter(axis == "2000788975")
 
 
 
@@ -39,9 +58,9 @@ run_pelt_meanvar <- function(values) {
     cpt_result_pelt <- cpt.mean(
       values,
       method = "PELT",
-      penalty = "Manual",
+      penalty = "AIC",
       # pen.value = 1,
-      pen.value = "0.5*log(n)",  # BIC      minseglen = 4  # 4 pour avoir au moins 3 segments valides
+      # pen.value = "1.4*log(n)",  # BIC      minseglen = 4  # 4 pour avoir au moins 3 segments valides
     )
     
     # Extraire les points de changement
@@ -66,10 +85,10 @@ run_pelt_meanvar <- function(values) {
 }
 
 
-SIN <- test %>%
+SIN <- metrique %>%
   group_by(axis) %>%
   arrange(measure) %>%
-  summarize(run_pelt_meanvar(na.omit(log_AC))) %>%
+  summarize(run_pelt_meanvar(na.omit(log_SIN))) %>%
   filter(cpt > 0) %>%
   mutate(source = "SIN")
 
@@ -112,7 +131,7 @@ rupture <- combined %>%
 
 # 1️⃣ Filtrer les toponymes présents dans AC
 axis_list <- unique(rupture$axis)
-metrique_filtre <- test %>%
+metrique_filtre <- metrique %>%
   filter(axis %in% axis_list)
 
 # Fonction pour majorité
@@ -175,14 +194,14 @@ process_toponyme <- function(top) {
 all_results <- map(axis_list, process_toponyme)
 
 # 3️⃣ Combiner les résultats
-TGH <- bind_rows(map(all_results, "res"))
-ALL_SUBDATA <- bind_rows(map(all_results, "subdata"))
+TGH_sin <- bind_rows(map(all_results, "res"))
+ALL_SUBDATA_sin <- bind_rows(map(all_results, "subdata"))
 
 # str(TGH)
-st_write(TGH, "TGH_sin.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(TGH_sin, "TGH_sin_amp.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
-Data_points <- ALL_SUBDATA %>%
+Data_points_sin <- ALL_SUBDATA_sin %>%
   group_by(axis, ID_segment) %>%
   arrange(desc(measure)) %>%
   slice_head(n = 1) %>%
@@ -204,10 +223,11 @@ Data_points <- ALL_SUBDATA %>%
   st_transform(2154)
 
 
-st_write(Data_points, "rupture_sin.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(Data_points_sin, "rupture_sin_amp.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
-nrow(Data_points)
+
+
 
 
 

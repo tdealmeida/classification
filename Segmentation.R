@@ -1,5 +1,6 @@
 library(changepoint)
 library(stringr)
+library(Rbeast)
 
 
 run_pelt_mean <- function(values) {
@@ -59,6 +60,46 @@ run_pelt_meanvar <- function(values) {
     tibble(
       cp = list(cpt_pelt),
       cpt = length(cpt_pelt)
+    )
+    
+  }, error = function(e) {
+    # En cas d'erreur -> pas de changements
+    tibble(
+      cp = list(integer(0)),
+      cpt = 0
+    )
+  })
+  
+  return(result)
+}
+
+
+
+
+
+
+
+run_beast <- function(values) {
+  result <- tryCatch({
+    # Analyse de changement de moyenne avec PELT
+    cpt_result_beast <- beast(
+      values,
+      season = "none",
+      tseg.min = 5,
+      tcp.minmax = c(0, 100),
+      quiet = 1
+    )
+    
+    # Extraire les points de changement
+    ncp_mode_beast <- cpt_result_beast$trend$ncp_mode
+    cp_beast <- cpt_result_beast$trend$cp
+    cpt_beast <- cp_beast[1:ncp_mode_beast]
+    cpt_beast <- sort(cpt_beast)
+    
+    # Retourner un tibble
+    tibble(
+      cp = list(cpt_beast),
+      cpt = length(cpt_beast)
     )
     
   }, error = function(e) {

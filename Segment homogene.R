@@ -82,6 +82,12 @@ metrique_filtre <- metrique %>%
 #   ifelse(counts[1] > counts[2], 1, 2)
 # }
 
+classe_dominante <- function(x) {
+  x <- na.omit(x)
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 value_pct <- function(x, val = 2) {
   sum(x == val, na.rm = TRUE) / length(x)
 }
@@ -135,20 +141,24 @@ process_toponyme <- function(top) {
       toponyme = first(toponyme),
       nb_DGO = n(),
       axis = first(axis),
+      gid_region = first(gid_region),
       measure = last(measure),
       source = paste(na.omit(unique(source_cpt)), collapse = "+"),
+      strahler = classe_dominante(strahler),
       mean_idx_water = safe_mean_idx_water(idx_water),
       across(c(AC, VB, WC, 
                Slope_talweg, Slope_VB, elevation, idx_conf,
-               ACW_star, 
-               enveloppe,
-               amplitude,
+               ACW_star, enveloppe, amplitude, angle_deg,
                # stream_power,
-               angle_deg), 
+               water_channel_pc, gravel_bars_pc, natural_open_pc, 
+               forest_pc, grassland_pc, crops_pc, diffuse_urban_pc, 
+               dense_urban_pc, infrastructures_pc, active_channel_pc, 
+               riparian_corridor_pc, semi_natural_pc, reversible_pc, 
+               disconnected_pc_corrige, built_environment_pc
+               ), 
              ~ mean(.x, na.rm = TRUE), .names = "mean_{.col}"),
       nb_WC_0_or_na = sum(WC == 0 | is.na(WC)),
-      # multi_chenal = majority_cat(multi_chenaux),   # ✅ majorité au lieu de moyenne
-      # iles_veget = majority_cat(ile_vege),       # ✅ majorité au lieu de moyenne
+      zero_na_pct = nb_WC_0_or_na / nb_DGO * 100,
       multi_chenal = value_pct(multi_chenaux, val = 2),   #
       iles_veget = value_pct(ile_vege, val = 2),       #
       retenue = value_pct(reservoir, val = 2),       #

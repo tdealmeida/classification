@@ -27,9 +27,14 @@ library(concaveman)
 # 2. Génération d'un tableau 
 # ============================================
 metrique <- Data %>%
-  select(toponyme,axis,measure,measure_medial_axis,strahler)%>%
+  # select(toponyme,axis,measure,measure_medial_axis,strahler)%>%
   mutate(axis = as.numeric(axis),
-         measure_medial_axis = as.numeric(measure_medial_axis))
+         measure_medial_axis = as.numeric(measure_medial_axis),
+         disconnected_pc_corrige = 100 - water_channel_pc - gravel_bars_pc - riparian_corridor_pc - semi_natural_pc - reversible_pc - built_environment_pc,
+         active_channel_pc = water_channel_pc + gravel_bars_pc,
+         sum_pc = water_channel_pc + gravel_bars_pc + riparian_corridor_pc + semi_natural_pc + reversible_pc + built_environment_pc + disconnected_pc_corrige
+         )
+
 
 
 # ============================================
@@ -176,15 +181,15 @@ metrique <- metrique %>%
 # ============================================
 enveloppe <- st_read("enveloppe_concave.gpkg") %>%
   st_drop_geometry() %>%
-  dplyr::select(AXIS, M,VALUE,axis_2, enveloppe) %>%
-  filter(AXIS == axis_2) %>%
-  group_by(AXIS, M) %>%
+  dplyr::select(M,VALUE,AXIS_2, enveloppe) %>%
+  group_by(AXIS_2, M) %>%
   filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  dplyr::select(-VALUE, -axis_2)
+  dplyr::select(-VALUE)
 
 metrique <- metrique %>%
-  left_join(enveloppe, by = c("axis"= "AXIS", "measure_medial_axis" ="M"))
+  left_join(enveloppe, by = c("axis"= "AXIS_2", "measure_medial_axis" ="M"))
 
 # ============================================
 # 13. Multi-chenal
@@ -463,7 +468,7 @@ rm(chenal_complet, chenal_resultats, chenal_forme_corse, chenal_forme_med,
    predictions_complet, predictions_test, surface_drainee, surface_drainee_corse,
   surface_drainee_med, surface_drainee_rhone,surface_drainee_totale, SIN, Data_sf, Data_sf_proj,
    barrage, enveloppe, matrice_confusion, index_entrainement, colonnes_a_exclure,
-   calculate_angles_sf, calcul_distance,iles, retenue)
+   calculate_angles_sf, calcul_distance,iles, retenue, debit, bassin, ampli)
   
 
 # ============================================

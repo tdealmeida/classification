@@ -88,8 +88,8 @@ df_long <- df_plot %>%
 ggplot(df_long, aes(x = label, y = valeur, fill = label)) +
   geom_boxplot(outlier.shape = 16, outlier.alpha = 0.4) +
   facet_wrap(~ variable, scales = "free_y", ncol = 2) +
-  labs(title = "Distribution des métriques par cluster (CAH)",
-       x = "Cluster", y = "Valeur") +
+  labs(title = "Distribution des métriques par label",
+       x = "style", y = "Valeur") +
   theme_minimal() +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),  # rotation verticale
@@ -110,214 +110,8 @@ ggplot(df_long, aes(x = label, y = valeur, fill = label)) +
 
 
 
-# --- Packages ---
-library(plotly)
 
-# --- Données ---
-x <- seq(1, 5, length.out = 400)
 
-# --- Fonctions d’appartenance (µ) ---
-
-# Classe 1 : de 1 à 1.1
-mu1 <- ifelse(x <= 1, 0,
-              ifelse(x <= 1.0, (x - 1)/(1.0 - 1),
-                     ifelse(x <= 1.1, (1.1 - x)/(1.1 - 1.0), 0)))
-
-# Classe 2 : de 1.0 à 1.3
-mu2 <- ifelse(x <= 1.0, 0,
-              ifelse(x <= 1.1, (x - 1.0)/(1.1 - 1.0),
-                     ifelse(x <= 1.3, (1.3 - x)/(1.3 - 1.1), 0)))
-
-# Classe 3 : de 1.1 à 1.3 puis reste à 1 jusqu’à 5
-mu3 <- ifelse(x <= 1.1, 0,
-              ifelse(x <= 1.3, (x - 1.1)/(1.3 - 1.1), 1))
-
-# --- Dataframe ---
-df <- data.frame(x, mu1, mu2, mu3)
-
-# --- Graphique Plotly ---
-p <- plot_ly(df, x = ~x, y = ~mu1, type = 'scatter', mode = 'lines',
-             name = 'Classe 1', line = list(color = 'blue', width = 3)) %>%
-  add_trace(y = ~mu2, name = 'Classe 2', mode = 'lines',
-            line = list(color = 'orange', width = 3)) %>%
-  add_trace(y = ~mu3, name = 'Classe 3', mode = 'lines',
-            line = list(color = 'red', width = 3)) %>%
-  layout(title = "Fuzzy Membership Functions (x ∈ [1,5])",
-         xaxis = list(title = "x"),
-         yaxis = list(title = "Degré d'appartenance µ(x)", range = c(0,1.1)),
-         hovermode = "x unified")
-
-p
-
-
-
-
-
-
-
-library(plotly)
-
-# --- Fonctions fuzzy
-fuzzy_tri <- function(x, a, b, c) {
-  res <- pmax(pmin((x - a)/(b - a), (c - x)/(c - b)), 0)
-  res[is.nan(res)] <- 0
-  res
-}
-
-fuzzy_trap <- function(x, a, b, c, d) {
-  # trapèze classique, gère aussi cas extrême (d == c)
-  res <- ifelse(x <= a, 0,
-                ifelse(x <= b, (x - a)/(b - a),
-                       ifelse(x <= c, 1,
-                              ifelse(x <= d, (d - x)/(d - c), 0))))
-  res[is.nan(res)] <- 0
-  res
-}
-
-# --- Données ---
-x <- seq(0.75, 5, length.out = 400)
-
-# --- Fonctions d'appartenance corrigées ---
-mu1 <- fuzzy_trap(x, a = 0.75, b = 0.75, c = 1.0, d = 1.2)
-mu2 <- fuzzy_tri(x, a = 1.05, b = 1.20, c = 1.40)
-mu3 <- fuzzy_trap(x, a = 1.25, b = 1.40, c = 2, d = 2)  # corrigé ici
-
-# --- DataFrame ---
-df <- data.frame(x, mu1, mu2, mu3)
-
-# --- Graphique interactif ---
-plot_ly(df, x = ~x, y = ~mu1, type = 'scatter', mode = 'lines',
-        name = 'Classe 1', line = list(width = 3, color = 'blue')) %>%
-  add_trace(y = ~mu2, name = 'Classe 2', mode = 'lines',
-            line = list(width = 3, color = 'orange')) %>%
-  add_trace(y = ~mu3, name = 'Classe 3', mode = 'lines',
-            line = list(width = 3, color = 'red')) %>%
-  layout(title = "Fonctions d'appartenance floues",
-         xaxis = list(title = "x", range = c(0.75,2)),
-         yaxis = list(title = "µ(x)", range = c(0,1.05)),
-         hovermode = "x unified")
-
-
-
-
-
-
-
-
-
-
-
-# Générer un exemple de données
-x <- seq(1, 2, by = 0.01)  # données de 1 à 2
-
-# Définir des fonctions d'appartenance sigmoïdes
-membership1 <- function(x) 1 / (1 + exp(50*(x-1.1)))   # transition classe 1 -> 2
-membership2 <- function(x) {
-  1 / (1 + exp(50*(x-1.3))) - 1 / (1 + exp(50*(x-1.1)))  # classe 2
-}
-membership3 <- function(x) 1 / (1 + exp(-50*(x-1.3)))   # classe 3
-
-# Calculer les valeurs
-mu1 <- membership1(x)
-mu2 <- membership2(x)
-mu3 <- membership3(x)
-
-# Vérifier la somme (pas forcément 1 exactement, mais logique floue)
-plot(x, mu1, type="l", col="red", ylim=c(0,1), ylab="Membership", xlab="x")
-lines(x, mu2, col="blue")
-lines(x, mu3, col="green")
-legend("topright", legend=c("Classe 1","Classe 2","Classe 3"), col=c("red","blue","green"), lty=1)
-
-
-
-
-
-
-
-
-
-# Fonction sigmoïde
-sigmoid <- function(x, a, c) {
-  1 / (1 + exp(-a * (x - c)))
-}
-
-# Fonctions d'appartenance
-mu1 <- function(x) {
-  1 - sigmoid(x, a = 50, c = 1.1)
-}
-
-mu2 <- function(x) {
-  sigmoid(x, a = 50, c = 1.1) * (1 - sigmoid(x, a = 50, c = 1.3))
-}
-
-mu3 <- function(x) {
-  sigmoid(x, a = 50, c = 1.3)
-}
-
-# Exemple d'utilisation
-x <- seq(0.5, 2, by = 0.01)
-data.frame(
-  x = x,
-  Classe1 = sapply(x, mu1),
-  Classe2 = sapply(x, mu2),
-  Classe3 = sapply(x, mu3)
-)
-
-
-plot(x, sapply(x, mu1), type = "l", col = "blue", ylim = c(0, 1),
-     main = "Fonctions d'appartenance (sigmoïdes)", xlab = "x", ylab = "Degré d'appartenance")
-lines(x, sapply(x, mu2), col = "red")
-lines(x, sapply(x, mu3), col = "green")
-
-
-
-
-
-
-
-
-
-
-sig_dec <- function(x, c, s) {
-  1 / (1 + exp((x - c) / s))   # décroissante
-}
-
-sig_inc <- function(x, c, s) {
-  1 / (1 + exp((c - x) / s))   # croissante
-}
-
-membership_3classes <- function(x, t1, t2, s) {
-  
-  # Appartenance brute
-  mu_rect      <- sig_dec(x, t1, s)
-  mu_meandre   <- sig_inc(x, t1, s) * sig_dec(x, t2, s)
-  mu_sinueux   <- sig_inc(x, t2, s)
-  
-  # Normalisation optionnelle (somme = 1)
-  denom <- mu_rect + mu_meandre + mu_sinueux
-  mu_rect_n    <- mu_rect    / denom
-  mu_meandre_n <- mu_meandre / denom
-  mu_sinueux_n <- mu_sinueux / denom
-  
-  return(list(
-    raw  = c(rectiligne = mu_rect, meandre = mu_meandre, sinueux = mu_sinueux),
-    norm = c(rectiligne = mu_rect_n, meandre = mu_meandre_n, sinueux = mu_sinueux_n)
-  ))
-}
-
-
-t1 <- 1.1
-t2 <- 2.0
-s  <- 0.2
-
-x_values <- c(0.5, 1.0, 1.2, 1.6, 2.5)
-
-for (x in x_values) {
-  res <- membership_3classes(x, t1, t2, s)
-  cat("\nx =", x, "\n")
-  print(round(res$raw, 3))
-  print(round(res$norm, 3))
-}
 
 
 
@@ -498,24 +292,100 @@ plot_comparaison(
 
 
 
+map <- testset %>%
+  left_join(resultat_final %>% st_drop_geometry() %>% 
+              select(mean_Slope_talweg,mean_AC, noeudfinal, Prediction),
+            by = c("mean_Slope_talweg", "mean_AC")
+  )
+
+
+confusion <- table(map$label, map$Prediction)
+
+map$label <- factor(map$label)
+map$Prediction <- factor(
+  map$Prediction,
+  levels = levels(map$label)
+)
+
+confusion <- confusionMatrix(
+  data = map$Prediction,
+  reference = map$label
+)
+
+conf_df <- as.data.frame(confusion$table)
+
+colnames(conf_df) <- c("Reference", "Prediction", "Freq")
+
+conf_df <- conf_df %>%
+  group_by(Reference) %>%
+  mutate(Percent = Freq / sum(Freq) * 100)
+
+ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 5) +
+  scale_fill_gradient(low = "#f7fbff", high = "#08306b") +
+  labs(
+    title = "Matrice de confusion – Random Forest",
+    x = "Vrai label",
+    y = "Label prédit",
+    fill = "% par classe"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "right"
+  )
 
 
 
 
-ggplot(label, aes(x = mean_idx_water, y = mean_ACW_star, color = label)) +
-  geom_point() +
-  scale_x_continuous(n.breaks = 10)   # augmente le nombre de graduations  geom_point()
+confusion <- table(map$label, map$noeudfinal)
+
+map$label <- factor(map$label)
+map$Prediction <- factor(
+  map$noeudfinal,
+  levels = levels(map$label)
+)
+unique(map$label)
+unique(map$noeudfinal)
+setdiff(unique(map$noeudfinal), unique(map$label))
+setdiff(unique(map$label), unique(map$noeudfinal))
+levels_communs <- sort(unique(map$label))
+map$label   <- factor(map$label, levels = levels_communs)
+map$noeudfinal <- factor(map$noeudfinal, levels = levels_communs)
 
 
+confusion <- confusionMatrix(
+  data = map$noeudfinal,
+  reference = map$label
+)
 
-ggplot(TGH_ID, aes(x = mean_amplitude, y = Sinuosity_meander)) +
-  geom_point() +
-  scale_x_continuous(n.breaks = 10)   # augmente le nombre de graduations  geom_point()
+conf_df <- as.data.frame(confusion$table)
 
+colnames(conf_df) <- c("Reference", "Prediction", "Freq")
 
+conf_df <- conf_df %>%
+  group_by(Reference) %>%
+  mutate(Percent = Freq / sum(Freq) * 100)
 
-
-
-
+ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 5) +
+  scale_fill_gradient(low = "#f7fbff", high = "#08306b") +
+  labs(
+    title = "Matrice de confusion – Arbre Heuristique",
+    x = "Vrai label",
+    y = "Label prédit",
+    fill = "% par classe"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "right"
+  )
 
 

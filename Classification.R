@@ -1,36 +1,88 @@
 tgh_stre <- TGH_ID %>%
-  filter(Sinuosity_meander <= 10) %>%
-  mutate(mean_idx_water = ifelse(mean_idx_water < 0, 0, mean_idx_water))
-
-# tgh_2 <- tgh_stre %>%
-#   st_drop_geometry()
+  mutate(mean_idx_water = ifelse(mean_idx_water < 0, 0, mean_idx_water)) %>%
+  filter(Sinuosity_meander <= 4, 
+         # mean_AC >= 4,
+         # retenue <= 0.4,
+         # nb_WC_0_or_na / nb_DGO <= 0.35
+  )
 
 vars <- tgh_stre %>%
-  select(mean_idx_water, mean_Slope_talweg, 
-         Sinuosity_meander, mean_ACW_star
+  select(mean_idx_water, Sinuosity_meander, mean_ACW_star, 
+         , iles_veget, mean_idx_conf, retenue
+         # mean_Slope_talweg, mean_WC , multi_chenal , mean_elevation
          # , mean_stream_power
          ) %>%
   st_drop_geometry()
 
 
+
+
+
+vars <- tgh_stre %>%
+  select(mean_idx_water, Sinuosity_meander, mean_ACW_star, 
+          iles_veget, mean_idx_conf, retenue, 
+         # mean_Slope_talweg,
+         # , mean_stream_power
+  ) %>%
+  st_drop_geometry()
+
+
 vars_scaled <- scale(vars)
 
-# 3️⃣ Calcul de la matrice de distances
+cor_mat <- cor(vars, use = "complete.obs")
+
+corrplot::corrplot(cor_mat, method = "color")
+
+# Calcul et plot de la ACH
 d <- dist(vars_scaled, method = "euclidean")
-
-# 4️⃣ Classification hiérarchique ascendante (méthode Ward par ex.)
 hc <- hclust(d, method = "ward.D2")
-
-# 5️⃣ Visualisation du dendrogramme
 plot(hc, labels = FALSE, hang = -1, main = "Classification hiérarchique (CAH)")
 
-# 6️⃣ Découper en k classes (par ex. 3 classes)
-clusters <- cutree(hc, k = 10)
+clusters <- cutree(hc, k = 12)
 
-# 7️⃣ Ajouter le résultat au dataframe
 tgh_stre$cluster <- as.factor(clusters)
 
 st_write(tgh_stre, "TGH_ID_cluster.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+
+
+
+# Méthode du coude pour Kmeans
+wss <- sapply(2:15, function(k){
+  kmeans(vars_scaled, centers = k, nstart = 25)$tot.withinss
+})
+
+plot(2:15, wss, type = "b", pch = 19,
+     xlab = "Nombre de clusters (k)",
+     ylab = "Inertie intra-classe",
+     main = "Méthode du coude - Kmeans")
+
+k <- 7   # à adapter selon le coude
+km <- kmeans(vars_scaled, centers = k, nstart = 50)
+
+tgh_stre$cluster_kmeans <- as.factor(km$cluster)
+
+st_write(tgh_stre, "TGH_ID_cluster_kmeans.gpkg", delete_layer = TRUE)
+
+
+# DBSCAN
+library(dbscan)
+
+set.seed(123)
+hdb <- hdbscan(vars_scaled, minPts = 5)   # à ajuster selon la taille
+tgh_stre$cluster_hdbscan <- as.factor(hdb$cluster)
+table(tgh_stre$cluster_hdbscan)
+
+st_write(tgh_stre, "TGH_ID_cluster_hdbscan.gpkg", delete_layer = TRUE)
+
+
+
+
+
+
+
+
 
 
 
@@ -92,8 +144,13 @@ library(randomForest)
 # ----------------------------
 # 1️⃣ Lecture + nettoyage
 # ----------------------------
-test <- st_read("label_aic.gpkg") 
+label <- st_read("label_aic.gpkg")
 
+test <- TGH_ID %>%
+  left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
+            by = c("axis", "ID_segment")
+  )
+table(test$label)
 # Colonnes inutiles
 colonnes_a_exclure <- c(
   "ID_segment", "toponyme", "nb_DGO", "axis", "source",
@@ -101,7 +158,13 @@ colonnes_a_exclure <- c(
   "mean_enveloppe", "Delta_AC", "Lag_AC",
   "Delta_AC_relatif", "Lag_AC_relatif", "measure",
   "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
-  "mean_amplitude" 
+  "mean_amplitude" , "mean_active_channel_pc", "mean_water_channel_pc",
+  "mean_forest_pc", "mean_grassland_pc", "mean_crops_pc",
+  "mean_diffuse_urban_pc", "mean_dense_urban_pc", "mean_infrastructures_pc",
+  "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
+  "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
+  "mean_gravel_bars_pc", "gid_region", "strahler", "noeudfinal", 
+  "nouef_final_simplifie", "nb_WC_0_or_na", "mean_Slope_VB"
   )
 
 #e ajout de nouvelle colonne depuis TGH
@@ -146,7 +209,12 @@ test <- test %>%
 # 
 # 
 # test en filtrant donnée
-test <- st_read("label_aic.gpkg")
+label <- st_read("label_aic.gpkg")
+
+test <- TGH_ID %>%
+  left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
+            by = c("axis", "ID_segment")
+  )
 
 test <- test %>%
   mutate(nb_0_na = TGH$nb_WC_0_or_na,
@@ -156,8 +224,10 @@ test <- test %>%
 test <- test %>%
   filter(
     mean_AC >= 4,
-    retenue <= 0.4,
-    !label %in% c("Retenue", "retenue", "Pas de lit")
+    retenue <= 0.35,
+    zero_na_pct <= 35,
+    !label %in% c("Retenue", "retenue", "Pas de lit",
+                  "intermittent", "tresse intermittent")
   )
 
 # Colonnes inutiles
@@ -167,8 +237,25 @@ colonnes_a_exclure <- c(
   "mean_enveloppe", "Delta_AC", "Lag_AC",
   "Delta_AC_relatif", "Lag_AC_relatif", "measure",
   "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
-  "mean_amplitude" , "retenue", "mean_Slope_VB"
+  "mean_amplitude" , "mean_active_channel_pc", "mean_water_channel_pc",
+  "mean_forest_pc", "mean_grassland_pc", "mean_crops_pc",
+  "mean_diffuse_urban_pc", "mean_dense_urban_pc", "mean_infrastructures_pc",
+  "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
+  "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
+  "mean_gravel_bars_pc", "gid_region", "strahler", "noeudfinal","retenue",
+  "zero_na_pct", "mean_elevation", "mean_Slope_VB", "nb_WC_0_or_na"
 )
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -184,7 +271,7 @@ test_clean$label <- factor(test_clean$label)
 # 2️⃣ Split train/test
 # ----------------------------
 set.seed(123)
-index <- createDataPartition(test_clean$label, p = 0.75, list = FALSE)
+index <- createDataPartition(test_clean$label, p = 0.8, list = FALSE)
 
 train <- test_clean[index, ]
 testset <- test_clean[-index, ]
@@ -210,6 +297,11 @@ pred_test <- predict(modele_foret, newdata = testset)
 
 confusion <- confusionMatrix(pred_test, testset$label)
 print(confusion)
+# confusion$byClass
+mean(confusion$byClass[, "Sensitivity"], na.rm = TRUE)
+mean(confusion$byClass[, "Pos Pred Value"], na.rm = TRUE)
+mean(confusion$byClass[, "F1"], na.rm = TRUE)
+mean(confusion$byClass[, "Specificity"], na.rm = TRUE)
 
 # Convertir la matrice de confusion en data frame ggplot-compatible
 conf_df <- as.data.frame(confusion$table)
@@ -278,7 +370,7 @@ head(resultat_final %>% select(label, Prediction, Probabilite))
 # --- Optionnel : Visualiser la distribution de la confiance ---
 library(ggplot2)
 ggplot(resultat_final, aes(x = Probabilite, fill = Prediction)) +
-  geom_histogram(bins = 30, color = "white", alpha = 0.7) +
+  geom_histogram(bins = 30, color = "white", alpha = 0.8) +
   labs(
     title = "Distribution de la certitude du modèle",
     x = "Probabilité (Certitude)",
@@ -288,7 +380,7 @@ ggplot(resultat_final, aes(x = Probabilite, fill = Prediction)) +
 
 
 
-st_write(resultat_final, "TGH_RF2.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(resultat_final, "TGH_RF_total.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
@@ -331,7 +423,7 @@ arbre_substitut <- rpart(
   Target_Foret ~ ., 
   data = data_surrogate, 
   method = "class",       # Car c'est une classification
-  control = rpart.control(maxdepth =7, cp = 0.005) 
+  control = rpart.control(maxdepth =9, cp = 0.005) 
 )
 
 # 3. Visualisation de l'arbre "moyen"
@@ -365,7 +457,7 @@ while (!is.null(dev.list())) dev.off()
 dev.list()
 
 
-pdf("arbre_substitut1.pdf", width = 15, height = 12)
+pdf("arbre_substitut_total.pdf", width = 15, height = 12)
 rpart.plot(arbre_substitut,
            type = 2,
            extra = 104,
@@ -491,3 +583,66 @@ dev.off()
 
 
 
+
+
+
+# devtools::install_github('araastat/reprtree')
+
+library(reprtree)
+
+# ----------------------------
+# 7️⃣ Extraction de l'Arbre Représentatif
+# ----------------------------
+
+# 1. Récupérer les prédictions individuelles de chaque arbre (500 colonnes)
+pred_individuelles <- predict(modele_foret, newdata = test, predict.all = TRUE)$individual
+
+# 2. Récupérer la prédiction globale de la forêt (le consensus)
+pred_foret <- predict(modele_foret, newdata = test)
+
+# 3. Calculer le taux de conformité de chaque arbre
+# On regarde combien de fois chaque arbre est d'accord avec la décision finale
+taux_accord <- apply(pred_individuelles, 2, function(col) {
+  mean(col == pred_foret)
+})
+
+# 4. Trouver l'index de l'arbre "Medoid"
+id_arbre_rep <- which.max(taux_accord)
+cat("L'arbre le plus représentatif est le n°", id_arbre_rep, 
+    "avec un taux d'accord de", round(max(taux_accord)*100, 2), "%\n")
+
+# 5. Extraire les règles de cet arbre sous forme de tableau
+arbre_data <- getTree(modele_foret, k = id_arbre_rep, labelVar = TRUE)
+head(arbre_data)
+
+# Visualisation simple
+reprtree:::plot.getTree(modele_foret, k = id_arbre_rep)
+# Alternative : Visualisation textuelle des 10 premières branches pour comprendre la logique
+# Utile pour votre rapport écrit
+print_tree_rules <- function(rf, k) {
+  tree <- getTree(rf, k = k, labelVar = TRUE)
+  return(tree)
+}
+rules <- print_tree_rules(modele_foret, id_arbre_rep)
+
+
+#2. Fonction pour convertir un arbre de randomForest en objet visualisable
+# (Cette étape est nécessaire car randomForest stocke les arbres de façon brute)
+tree_to_party <- function(rf, k) {
+  tree_dat <- getTree(rf, k = k, labelVar = TRUE)
+  # Transformation du format pour partykit
+  # Note : cette étape simplifiée permet de récupérer la structure
+  return(tree_dat)
+}
+while (!is.null(dev.list())) dev.off()
+dev.list()
+
+# 3. Préparation du fichier PDF
+pdf("Arbre_Representatif_Typo_Route.pdf", width = 20, height = 12) # Grand format pour la lisibilité
+
+# On utilise reprtree pour le rendu graphique si installé, 
+# sinon on dessine une version structurée
+library(reprtree)
+reprtree:::plot.getTree(modele_foret, k = id_arbre_rep)
+
+dev.off() # Ferme et enregistre le PDF
