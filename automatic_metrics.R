@@ -23,7 +23,7 @@ library(zoo)
 # ============================================
 calculer_metriques_base <- function(Data) {
   
-  metriques_base %>%
+  metriques_base <- Data %>%
     mutate(
       axis  = as.numeric(axis),
       measure_medial_axis = as.numeric(measure_medial_axis),
@@ -47,18 +47,58 @@ calculer_metriques_base <- function(Data) {
 # ============================================
 calculer_drainage_area <- function(surface_drainee) {
   
-    drainage_area <- surface_draine %>%
+    drainage_area <- surface_drainee %>%
       rename(measure_medial_axis = measure)
     
   return(drainage_area)
 }
 
 # ============================================
+# 3. Confinement Degree
+# ============================================
+calculer_conf_degree <- function(margins_VB_sum) {
+  
+  margins <- margins_VB_sum %>%
+    rename(conf_degree = longueur_margins)
+  
+  return(margins)
+}
+
+# ============================================
 # 3. Sinuosité
 # ============================================
 calculer_sinuosite <- function(Data) {
-  # Préparation SF
-  Data_sf <- Data %>%
+  
+  calculate_angles_sf <- function(points_sf) {
+    coords <- sf::st_coordinates(points_sf)
+    if (nrow(coords) < 3) {
+      stop("At least 3 points are necessary to calculate angles")
+    }
+    angles <- sapply(2:(nrow(coords) - 1), function(i) {
+      p1 <- coords[i - 1, ]
+      p2 <- coords[i, ]
+      p3 <- coords[i + 1, ]
+      v1 <- p1 - p2
+      v2 <- p3 - p2
+      dot_product <- sum(v1 * v2)
+      norm_v1 <- sqrt(sum(v1^2))
+      norm_v2 <- sqrt(sum(v2^2))
+      angle <- acos(dot_product / (norm_v1 * norm_v2))
+      return(angle)
+    })
+    
+    # Crée un vecteur complet avec NA pour les premiers/derniers points
+    angle_full <- rep(NA, nrow(coords))
+    angle_full[2:(nrow(coords)-1)] <- angles
+    
+    angle_sf <- points_sf
+    angle_sf$angle_rad <- abs(angle_full - pi) # écart à un angle plat
+    angle_sf$angle_deg <- angle_sf$angle_rad * 180 / pi # conversion en degrés
+    
+    return(angle_sf)
+  }
+  
+    Data_sf <- Data %>%
     st_as_sf() %>%
     mutate(
       geom = st_sfc(purrr::map(geom, ~ {
@@ -74,7 +114,7 @@ calculer_sinuosite <- function(Data) {
     group_by(axis) %>%
     group_modify(~ {
       if (nrow(.x) >= 3) {
-        helper_calculate_angles_sf(.x)
+        calculate_angles_sf(.x)
       } else {
         .x %>% mutate(angle_rad = NA_real_, angle_deg = NA_real_)
       }
@@ -89,31 +129,22 @@ calculer_sinuosite <- function(Data) {
 # ============================================
 # 4. Enveloppe de méandrage
 # ============================================
-calculer_enveloppe <- function(meander_belt) {
+calculer_meander_belt <- function(meander_belt) {
 
-  meander_belt <- meander_belt %>%
+  meanderbelt <- meander_belt %>%
     rename(axis = AXIS_2,
            measure_medial_axis = M,
-           meander_belt = enveloppe) 
+           meander_belt = enveloppe)
 
-  return(enveloppe_meandrage)
+  return(meanderbelt)
 }
 
 # ============================================
 # 5. Multi-chenal (Random Forest)
 # ============================================
-calculer_multichenal <- function(chenal_prop, DGO_label) {
-  # 1. Préparation données
-  chenal_labels <- DGO_label %>%
-    rename(geom = geometry) %>%
-    st_as_sf(sf_column_name = "geom") %>%
-    select(AXIS, M, multi) %>%
-    group_by(AXIS, M) %>%
-    slice(1) %>%
-    ungroup()
-  
-  # 2. Préparation Modèle
-  chenal_complet <- chenal_forme_total %>%
+calculer_multichenal <- function(chenal_forme, chenal_labels) {
+
+  chenal_complet <- chenal_forme %>%
     left_join(chenal_labels, by = c("AXIS", "M"))
   
   colonnes_a_exclure <- c("AXIS", "M", "geom")
@@ -198,21 +229,21 @@ calculer_multichenal <- function(chenal_prop, DGO_label) {
 # ============================================
 # 7. Présence/absence d'îles végétalisées
 # ============================================
-calculer_iles <- function(Data, iles_vegetalise) {
+calculer_iles <- function(iles_veget) {
   
-  iles_veget <- iles_vegetalise %>%
+  ile_veget <- iles_veget %>%
     rename(axis = AXIS, measure_medial_axis = M) %>%
     distinct() 
   
-  return(iles_veget)
+  return(ile_veget)
 }
 
 # ============================================
 # 8. Présence/absence de retenue
 # ============================================
-calculer_retenue <- function(retenue) {
+calculer_retenue <- function(retenu) {
   
-  retenue <- retenue %>%
+  retenue <- retenu %>%
     rename(axis = AXIS, measure_medial_axis = M) %>%
     distinct() 
 
@@ -299,6 +330,9 @@ df_base <- calculer_metriques_base(Data)
 # Drainage Area
 df_drainage <- calculer_drainage_area(surface_drainee)
 
+# Confinement Degree
+df_conf <- calculer_conf_degree(margins_VB_sum)
+
 # Sinuosité
 df_sin <- calculer_sinuosite(Data)
 
@@ -306,16 +340,16 @@ df_sin <- calculer_sinuosite(Data)
 df_env <- calculer_meander_belt(meander_belt)
 
 # Multi-chenal
-df_multi <- calculer_multichenal(chenal_forme, DGO_label)
+df_multi <- calculer_multichenal(chenal_forme, chenal_labels)
 
 # Distance à un barrage
-df_barrage <- calculer_distance_barrage(Data, roe)
+# df_barrage <- calculer_distance_barrage(Data, roe)
 
 # Présence/absence d'îles végétalisées
 df_iles <- calculer_iles(iles_veget)
 
 # Présence/absence de retenue
-df_retenue <- calculer_retenue(retenue)
+df_retenue <- calculer_retenue(retenu)
 
 # Amplitude (sinuosité)
 # df_ampli <- calculer_amplitude(Data_input)
@@ -327,22 +361,30 @@ df_retenue <- calculer_retenue(retenue)
 # 4. Jointures successives sur df_base
 # ============================================
 metrique <- df_base %>%
-  
   left_join(
     df_drainage %>% select(axis, measure_medial_axis, drainage_area),
     by = c("axis", "measure_medial_axis")
-  ) %>%
-  
+  )
+
+metrique <- metrique %>%
+  left_join(
+    df_conf %>% select(axis, measure_medial_axis, conf_degree),
+    by = c("axis", "measure_medial_axis")
+  )
+
+metrique <- metrique %>%
   left_join(
     df_sin %>% select(axis, measure, angle_deg),
     by = c("axis", "measure")
-  ) %>%
-  
+  )
+
+metrique <- metrique %>%
   left_join(
     df_env,
     by = c("axis", "measure_medial_axis")
-  ) %>%
-  
+  )
+
+metrique <- metrique %>%
   left_join(
     df_multi %>% select(AXIS, M, multi_chenaux),
     by = c("axis" = "AXIS", "measure_medial_axis" = "M")
@@ -350,18 +392,24 @@ metrique <- df_base %>%
   mutate(
     multi_chenaux = as.numeric(multi_chenaux),
     multi_chenaux = ifelse(is.na(multi_chenaux), 1, multi_chenaux)
-  ) %>%
-  
-  # left_join(df_barrage, by = c("axis", "measure")) %>%   # ← OK de commenter comme ça
-  
+  )
+
+# metrique <- metrique %>%
+  # left_join(
+  # df_barrage,
+  # by = c("axis", "measure")
+  # ) %>%
+
+metrique <- metrique %>%
   left_join(
-    df_iles %>% mutate(ile_vege = 2),
+    df_iles %>% mutate(ile_veget = 2),
     by = c("axis", "measure_medial_axis")
   ) %>%
   mutate(
-    ile_vege = ifelse(is.na(ile_vege), 1, ile_vege)
-  ) %>%
-  
+    ile_veget = ifelse(is.na(ile_veget), 1, ile_veget)
+  )
+
+metrique <- metrique %>%
   left_join(
     df_retenue %>% mutate(reservoir = 2),
     by = c("axis", "measure_medial_axis")
@@ -407,4 +455,12 @@ metrique <- metrique %>%
 # ACW*
 metrique <- metrique %>%
   mutate(ACW_star = AC / (drainage_area^0.44))
+
+rm(df_base, df_drainage, df_conf, df_sin, df_env, df_multi, df_iles, df_retenue, 
+   calculer_metriques_base, calculer_drainage_area, calculer_conf_degree, calculer_sinuosite,
+   calculer_meander_belt, calculer_multichenal, calculer_iles, calculer_retenue
+)
+
+
+
 

@@ -6,15 +6,13 @@ library(dplyr)        # Manipulation de données
 library(sf)           # Gestion et traitement de données spatiales
 library(lwgeom)  # pour st_split
 library(qgisprocess)  # Exécution d'algorithmes QGIS depuis R)
+# detach("package:qgisprocess", unload = TRUE)
 
 # =====================================================================
 # Lecture des données sources
 # =====================================================================
-# Lecture du shapefile contenant les axes médians
-# medial_axis_VB <- st_read("MEDIAL_AXIS_SIMPL_DEFAULT.shp") %>%
-#   st_as_sf() 
-
-meander_belt_axis <- st_read("meanderbelt_RMC.gpkg") 
+# meander_belt_axis <- st_read("meanderbelt_RMC.gpkg")
+meander_belt_axis <- meanderbelt_axis # calculé dans Data
 
 rupture_points <- Data_points %>%
   ungroup() %>%   # Retirer tout groupement éventuel
@@ -154,6 +152,7 @@ medial_meander <- medial_axis_segments_sf %>%
 # =====================================================================
 # Attribution des segments découpés aux segments homogènes
 # =====================================================================
+
 TGH <- st_transform(TGH, 2154)
 
 # medial_VB <- medial_VB %>%
@@ -195,7 +194,7 @@ TGH_ID <- TGH_ID %>%
 # TGH_0.4_ampl <- TGH_ID 
 # st_write(TGH_0.4_ampl, "TGH_04_ampl.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
-st_write(TGH_ID, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(TGH_ID, "TGH_ID_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
@@ -205,91 +204,91 @@ rm(medial_axis_group, medial_axis_segments_sf, result, rupture_group, rupture_sn
 
 
 
+TGH_ID <- st_read("TGH_ID_fr.gpkg") 
 
-
-TGH_classif <- TGH_ID %>%
-  mutate(
-    noeud1 = case_when(
-      mean_AC > 4 ~ "Lit",
-      mean_AC <= 4   ~ "Pas de lit" # fin
-    ),
-    noeud2 = case_when(
-      noeud1 == "Lit" & zero_na_pct < 35 ~ "Lit en eau",
-      noeud1 == "Lit" & zero_na_pct >= 35 ~ "Lit sans eau",
-      TRUE ~ noeud1
-    ),
-    noeud3 = case_when(
-      noeud2 == "Lit en eau" & retenue > 0.5 ~ "retenue", # fin
-      noeud2 == "Lit en eau" & retenue <= 0.5 ~ "rivière",
-      noeud2 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
-      noeud2 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
-      TRUE ~ noeud2
-    ),
-    noeud4 = case_when(
-      noeud3 == "rivière" & mean_idx_water < 0.94 ~ "Lit à banc",
-      noeud3 == "rivière" & mean_idx_water >= 0.94 ~ "Lit sans bancs",
-      TRUE ~ noeud3
-    ),
-    noeud5 = case_when(
-      noeud4 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
-      noeud4 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
-      noeud4 == "Lit sans bancs" & iles_veget >= 0.8  ~ "Multichenaux à ilots boisés", 
-      noeud4 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
-      TRUE ~ noeud4
-    ),
-    noeud6 = case_when(
-      noeud5 == "tresse" & mean_idx_water < 0.25 ~ "tresse",
-      noeud5 == "tresse" & mean_idx_water >= 0.25 ~ "Non tresse",
-      noeud5 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", 
-      noeud5 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
-      noeud5 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
-      noeud5 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
-      noeud5 == "Multichenaux à ilots boisés" & Sinuosity_meander < 1.2 ~ "anamostose", # fin
-      noeud5 == "Multichenaux à ilots boisés" & Sinuosity_meander >= 1.2 ~ "Chenal unique",
-      TRUE ~ noeud5
-    ),
-    noeud7 = case_when(
-      noeud6 == "tresse" & mean_ACW_star < 30 ~ "tresse",
-      noeud6 == "tresse" & mean_ACW_star >= 30 ~ "divagant", # fin
-      noeud6 == "Non tresse" & mean_idx_water > 0.6 ~ "rectiligne bars", # fin
-      noeud6 == "Non tresse" & mean_idx_water <= 0.6 ~ "divagant", # fin
-      noeud6 == "divagant" & mean_idx_water > 0.6 ~ "rectiligne bars", # fin
-      noeud6 == "divagant" & mean_idx_water <= 0.6 ~ "divagant", # fin
-      noeud6 == "Bancs" & iles_veget >= 0.8  ~ "anamostose", # fin
-      noeud6 == "Bancs" & iles_veget < 0.8 ~ "Bancs unique",
-      noeud6 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
-      noeud6 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
-      noeud6 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
-      noeud6 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
-      # noeud6 == "anamostose" & Sinuosity_meander < 1.15 ~ "anamostose",
-      # noeud6 == "anamostose" & Sinuosity_meander >= 1.15 ~ "Multichenaux à ilots boisés",
-      TRUE ~ noeud6
-    ),
-    noeud8 = case_when(
-      noeud7 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal",
-      noeud7 == "tresse" & iles_veget <= 0.7 ~ "tresse",
-      noeud7 == "Bancs unique" & Sinuosity_meander > 1.3  ~ "meandre actif", # fin
-      noeud7 == "Bancs unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
-      noeud7 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
-      noeud7 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
-      # noeud7 == "divagant" & mean_ACW_star < 15 ~ "divagant",
-      # noeud7 == "divagant" & mean_ACW_star >= 15 ~ "Bancs",
-      TRUE ~ noeud7
-    ),
-    noeudfinal = case_when(
-      noeud8 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne bars", # fin
-      noeud8 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux ba", # fin
-      TRUE ~ noeud8
-    )
-  )
-
-
-TGH_ID <- TGH_ID %>%
-  left_join(TGH_classif %>% st_drop_geometry() %>% select(axis,ID_segment, noeudfinal),
-            by = c("axis", "ID_segment")
-  )
-
-st_write(TGH_classif, "TGH_classif.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# TGH_classif <- TGH_ID %>%
+#   mutate(
+#     noeud1 = case_when(
+#       mean_AC > 4 ~ "Lit",
+#       mean_AC <= 4   ~ "Pas de lit" # fin
+#     ),
+#     noeud2 = case_when(
+#       noeud1 == "Lit" & zero_na_pct < 35 ~ "Lit en eau",
+#       noeud1 == "Lit" & zero_na_pct >= 35 ~ "Lit sans eau",
+#       TRUE ~ noeud1
+#     ),
+#     noeud3 = case_when(
+#       noeud2 == "Lit en eau" & retenue > 0.5 ~ "retenue", # fin
+#       noeud2 == "Lit en eau" & retenue <= 0.5 ~ "rivière",
+#       noeud2 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
+#       noeud2 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
+#       TRUE ~ noeud2
+#     ),
+#     noeud4 = case_when(
+#       noeud3 == "rivière" & mean_idx_water < 0.94 ~ "Lit à banc",
+#       noeud3 == "rivière" & mean_idx_water >= 0.94 ~ "Lit sans bancs",
+#       TRUE ~ noeud3
+#     ),
+#     noeud5 = case_when(
+#       noeud4 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
+#       noeud4 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
+#       noeud4 == "Lit sans bancs" & iles_veget >= 0.8  ~ "Multichenaux à ilots boisés", 
+#       noeud4 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
+#       TRUE ~ noeud4
+#     ),
+#     noeud6 = case_when(
+#       noeud5 == "tresse" & mean_idx_water < 0.25 ~ "tresse",
+#       noeud5 == "tresse" & mean_idx_water >= 0.25 ~ "Non tresse",
+#       noeud5 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", 
+#       noeud5 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
+#       noeud5 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
+#       noeud5 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+#       noeud5 == "Multichenaux à ilots boisés" & Sinuosity_meander < 1.2 ~ "anamostose", # fin
+#       noeud5 == "Multichenaux à ilots boisés" & Sinuosity_meander >= 1.2 ~ "Chenal unique",
+#       TRUE ~ noeud5
+#     ),
+#     noeud7 = case_when(
+#       noeud6 == "tresse" & mean_ACW_star < 30 ~ "tresse",
+#       noeud6 == "tresse" & mean_ACW_star >= 30 ~ "divagant", # fin
+#       noeud6 == "Non tresse" & mean_idx_water > 0.6 ~ "rectiligne bars", # fin
+#       noeud6 == "Non tresse" & mean_idx_water <= 0.6 ~ "divagant", # fin
+#       noeud6 == "divagant" & mean_idx_water > 0.6 ~ "rectiligne bars", # fin
+#       noeud6 == "divagant" & mean_idx_water <= 0.6 ~ "divagant", # fin
+#       noeud6 == "Bancs" & iles_veget >= 0.8  ~ "anamostose", # fin
+#       noeud6 == "Bancs" & iles_veget < 0.8 ~ "Bancs unique",
+#       noeud6 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
+#       noeud6 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
+#       noeud6 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
+#       noeud6 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+#       # noeud6 == "anamostose" & Sinuosity_meander < 1.15 ~ "anamostose",
+#       # noeud6 == "anamostose" & Sinuosity_meander >= 1.15 ~ "Multichenaux à ilots boisés",
+#       TRUE ~ noeud6
+#     ),
+#     noeud8 = case_when(
+#       noeud7 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal",
+#       noeud7 == "tresse" & iles_veget <= 0.7 ~ "tresse",
+#       noeud7 == "Bancs unique" & Sinuosity_meander > 1.3  ~ "meandre actif", # fin
+#       noeud7 == "Bancs unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+#       noeud7 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
+#       noeud7 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
+#       # noeud7 == "divagant" & mean_ACW_star < 15 ~ "divagant",
+#       # noeud7 == "divagant" & mean_ACW_star >= 15 ~ "Bancs",
+#       TRUE ~ noeud7
+#     ),
+#     noeudfinal = case_when(
+#       noeud8 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne bars", # fin
+#       noeud8 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux ba", # fin
+#       TRUE ~ noeud8
+#     )
+#   )
+# 
+# 
+# TGH_ID <- TGH_ID %>%
+#   left_join(TGH_classif %>% st_drop_geometry() %>% select(axis,ID_segment, noeudfinal),
+#             by = c("axis", "ID_segment")
+#   )
+# 
+# st_write(TGH_classif, "TGH_classif.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
@@ -305,62 +304,73 @@ st_write(TGH_classif, "TGH_classif.gpkg", delete_layer = TRUE) # Export des donn
 TGH_classif_simplifie <- TGH_ID %>%
   mutate(
     noeud1 = case_when(
-      mean_AC > 4 ~ "Lit",
-      mean_AC <= 4   ~ "Pas de lit" # fin
+      retenue > 0.4 ~ "retenue", # fin
+      retenue <= 0.4 ~ "rivière"
     ),
     noeud2 = case_when(
-      noeud1 == "Lit" & zero_na_pct < 35 ~ "Lit en eau",
-      noeud1 == "Lit" & zero_na_pct >= 35 ~ "Lit sans eau",
+      noeud1 == "rivière" & mean_idx_water < 0.95 ~ "Lit à banc",
+      noeud1 == "rivière" & mean_idx_water >= 0.95 ~ "Lit sans bancs",
       TRUE ~ noeud1
     ),
     noeud3 = case_when(
-      noeud2 == "Lit en eau" & retenue > 0.4 ~ "retenue", # fin
-      noeud2 == "Lit en eau" & retenue <= 0.4 ~ "rivière",
-      noeud2 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
-      noeud2 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
+      noeud2 == "Lit à banc" & mean_idx_water < 0.05  ~ "Lit sans bancs",
+      noeud2 == "Lit à banc" & mean_idx_water >= 0.05  ~ "Lit à banc",
       TRUE ~ noeud2
     ),
+    
     noeud4 = case_when(
-      noeud3 == "rivière" & mean_idx_water < 0.95 ~ "Lit à banc",
-      noeud3 == "rivière" & mean_idx_water >= 0.95 ~ "Lit sans bancs",
+      noeud3 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
+      noeud3 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
+      noeud3== "Lit sans bancs" & iles_veget >= 0.8  ~ "anastomose", # fin
+      noeud3 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
       TRUE ~ noeud3
     ),
     noeud5 = case_when(
-      noeud4 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
-      noeud4 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
-      noeud4 == "Lit sans bancs" & iles_veget >= 0.8  ~ "anamostose", # fin
-      noeud4 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
+      noeud4 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal", # fin
+      noeud4 == "tresse" & iles_veget <= 0.7 ~ "tresse", # fin
+      noeud4 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", # fin
+      noeud4 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
+      noeud4 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
+      noeud4 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
       TRUE ~ noeud4
     ),
     noeud6 = case_when(
-      noeud5 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal", # fin
-      noeud5 == "tresse" & iles_veget <= 0.7 ~ "tresse", # fin
-      noeud5 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", # fin
-      noeud5 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
-      noeud5 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
-      noeud5 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+      noeud5 == "Bancs" & Sinuosity_meander > 1.3  ~ "meandre actif", # fin
+      noeud5 == "Bancs" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+      noeud5 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
+      noeud5 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
       TRUE ~ noeud5
     ),
-    noeud7 = case_when(
-      noeud6 == "Bancs" & Sinuosity_meander > 1.3  ~ "meandre actif", # fin
-      noeud6 == "Bancs" & Sinuosity_meander <= 1.3 ~ "Non méandre",
-      noeud6 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
-      noeud6 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
+    Planform = case_when(
+      noeud6 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne bars", # fin
+      noeud6 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux ba", # fin
       TRUE ~ noeud6
     ),
-    nouef_final_simplifie = case_when(
-      noeud7 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne bars", # fin
-      noeud7 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux ba", # fin
+    noeud7 = case_when(
+      mean_AC > 4 ~ "Lit",
+      mean_AC <= 4   ~ "Pas de lit", # fin
+      TRUE ~ Planform
+    ),
+    noeud8 = case_when(
+      noeud7 == "Lit" & na_pct < 35 ~ "Lit en eau",
+      noeud7 == "Lit" & na_pct >= 35 ~ "Lit sans eau",
       TRUE ~ noeud7
-    )
+    ),
+    Process = case_when(
+      noeud8 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
+      noeud8 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
+      TRUE ~ noeud8
+    ),
   )
 
 
 TGH_ID <- TGH_ID %>%
-  left_join(TGH_classif_simplifie %>% st_drop_geometry() %>% select(axis,ID_segment, nouef_final_simplifie),
+  left_join(TGH_classif_simplifie %>% st_drop_geometry() %>% select(axis,ID_segment,Planform , Process),
             by = c("axis", "ID_segment")
   )
 
-st_write(TGH_classif_simplifie, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# st_write(TGH_ID, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
+
+# st_write(TGH_ID, "TGH_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 

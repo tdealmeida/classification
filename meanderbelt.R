@@ -4,11 +4,10 @@ library(qgisprocess)
 
 
 
-axiss <- st_read("Data/Rhin/networks_axis_clean_rhin.gpkg") %>%
+axiss <- st_read("Data/Adour/networks_axis_clean_adour.gpkg") %>%
   ungroup() %>%
   select(toponyme, axis, geom) %>%
   st_set_geometry("geom") %>%            #  très important
-  # filter(axis == 2000844950) %>%
   st_cast("LINESTRING", warn = FALSE) %>%
   st_as_sf()
 
@@ -55,4 +54,4 @@ inflection_lines_all <- do.call(rbind, inflection_list)
 inflection_lines_all <- inflection_lines_all %>%
   select(-fid)
 
-st_write(inflection_lines_all, "Data/Rhin/meanderbelt_axis_rhin.gpkg", delete_layer = TRUE)
+st_write(inflection_lines_all, "Data/Adour/meanderbelt_axis_adour.gpkg", delete_layer = TRUE)

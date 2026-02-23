@@ -1,5 +1,5 @@
 tgh_stre <- TGH_ID %>%
-  mutate(mean_idx_water = ifelse(mean_idx_water < 0, 0, mean_idx_water)) %>%
+  # mutate(mean_idx_water = ifelse(mean_idx_water < 0, 0, mean_idx_water)) %>%
   filter(Sinuosity_meander <= 4, 
          # mean_AC >= 4,
          # retenue <= 0.4,
@@ -8,7 +8,8 @@ tgh_stre <- TGH_ID %>%
 
 vars <- tgh_stre %>%
   select(mean_idx_water, Sinuosity_meander, mean_ACW_star, 
-         , iles_veget, mean_idx_conf, retenue
+         , iles_veget, retenue , 
+         mean_idx_conf, mean_VB
          # mean_Slope_talweg, mean_WC , multi_chenal , mean_elevation
          # , mean_stream_power
          ) %>%
@@ -18,13 +19,13 @@ vars <- tgh_stre %>%
 
 
 
-vars <- tgh_stre %>%
-  select(mean_idx_water, Sinuosity_meander, mean_ACW_star, 
-          iles_veget, mean_idx_conf, retenue, 
-         # mean_Slope_talweg,
-         # , mean_stream_power
-  ) %>%
-  st_drop_geometry()
+# vars <- tgh_stre %>%
+#   select(mean_idx_water, Sinuosity_meander, mean_ACW_star, 
+#           iles_veget, mean_idx_conf, retenue, 
+#          # mean_Slope_talweg,
+#          # , mean_stream_power
+#   ) %>%
+#   st_drop_geometry()
 
 
 vars_scaled <- scale(vars)
@@ -36,6 +37,8 @@ corrplot::corrplot(cor_mat, method = "color")
 # Calcul et plot de la ACH
 d <- dist(vars_scaled, method = "euclidean")
 hc <- hclust(d, method = "ward.D2")
+# hc <- hclust(d, method = "average")
+
 plot(hc, labels = FALSE, hang = -1, main = "Classification hiérarchique (CAH)")
 
 clusters <- cutree(hc, k = 12)
@@ -140,11 +143,20 @@ library(sf)
 library(dplyr)
 library(caret)
 library(randomForest)
+library(rpart)
+library(rpart.plot)
 
 # ----------------------------
 # 1️⃣ Lecture + nettoyage
 # ----------------------------
-label <- st_read("label_aic.gpkg")
+# label <- st_read("label_aic.gpkg")
+label <- st_read("label_fr.gpkg") %>%
+  # st_drop_geometry() %>%
+  select(-label) %>%
+  rename(label = label_2) %>%
+  filter(!label == "diffus") %>%
+  filter(!label == "a voir")
+
 
 test <- TGH_ID %>%
   left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
@@ -154,23 +166,29 @@ table(test$label)
 # Colonnes inutiles
 colonnes_a_exclure <- c(
   "ID_segment", "toponyme", "nb_DGO", "axis", "source",
-  "sum_length", "length_meander", "drainage_area", "roe",
-  "mean_enveloppe", "Delta_AC", "Lag_AC",
+  "sum_length", "length_meander", 
+  "drainage_area",
+  # "roe",
+  "mean_meander_belt", "Delta_AC", "Lag_AC",
   "Delta_AC_relatif", "Lag_AC_relatif", "measure",
-  "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
-  "mean_amplitude" , "mean_active_channel_pc", "mean_water_channel_pc",
+  "mean_angle_deg" , "mean_idx_conf", "mean_VB",
+  "mean_active_channel_pc", "mean_water_channel_pc",
   "mean_forest_pc", "mean_grassland_pc", "mean_crops_pc",
   "mean_diffuse_urban_pc", "mean_dense_urban_pc", "mean_infrastructures_pc",
   "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
   "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
-  "mean_gravel_bars_pc", "gid_region", "strahler", "noeudfinal", 
-  "nouef_final_simplifie", "nb_WC_0_or_na", "mean_Slope_VB"
+  "mean_gravel_bars_pc", "gid_region", "strahler", 
+  "nb_na", "mean_Slope_VB" , "na_pct", "Planform", "Process", 
+  "mean_elevation",
+  "length_original", "Sinuosity_original", 
+  "mean_Slope_talweg",
+  "mean_AC", "mean_WC"
   )
 
 #e ajout de nouvelle colonne depuis TGH
 test <- test %>%
-  mutate(nb_0_na = TGH$nb_WC_0_or_na,
-         zero_na_pct = nb_0_na / nb_DGO * 100
+  mutate(nb_na = TGH_ID$nb_na,
+         na_pct = nb_na / nb_DGO * 100
   )
 
 
@@ -209,42 +227,42 @@ test <- test %>%
 # 
 # 
 # test en filtrant donnée
-label <- st_read("label_aic.gpkg")
-
-test <- TGH_ID %>%
-  left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
-            by = c("axis", "ID_segment")
-  )
-
-test <- test %>%
-  mutate(nb_0_na = TGH$nb_WC_0_or_na,
-         zero_na_pct = nb_0_na / nb_DGO * 100
-  )
-
-test <- test %>%
-  filter(
-    mean_AC >= 4,
-    retenue <= 0.35,
-    zero_na_pct <= 35,
-    !label %in% c("Retenue", "retenue", "Pas de lit",
-                  "intermittent", "tresse intermittent")
-  )
-
-# Colonnes inutiles
-colonnes_a_exclure <- c(
-  "ID_segment", "toponyme", "nb_DGO", "axis", "source",
-  "sum_length", "length_meander", "drainage_area", "roe",
-  "mean_enveloppe", "Delta_AC", "Lag_AC",
-  "Delta_AC_relatif", "Lag_AC_relatif", "measure",
-  "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
-  "mean_amplitude" , "mean_active_channel_pc", "mean_water_channel_pc",
-  "mean_forest_pc", "mean_grassland_pc", "mean_crops_pc",
-  "mean_diffuse_urban_pc", "mean_dense_urban_pc", "mean_infrastructures_pc",
-  "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
-  "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
-  "mean_gravel_bars_pc", "gid_region", "strahler", "noeudfinal","retenue",
-  "zero_na_pct", "mean_elevation", "mean_Slope_VB", "nb_WC_0_or_na"
-)
+# label <- st_read("label_aic.gpkg")
+# 
+# test <- TGH_ID %>%
+#   left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
+#             by = c("axis", "ID_segment")
+#   )
+# 
+# test <- test %>%
+#   mutate(nb_0_na = TGH$nb_WC_0_or_na,
+#          zero_na_pct = nb_0_na / nb_DGO * 100
+#   )
+# 
+# test <- test %>%
+#   filter(
+#     mean_AC >= 4,
+#     retenue <= 0.35,
+#     zero_na_pct <= 35,
+#     !label %in% c("Retenue", "retenue", "Pas de lit",
+#                   "intermittent", "tresse intermittent")
+#   )
+# 
+# # Colonnes inutiles
+# colonnes_a_exclure <- c(
+#   "ID_segment", "toponyme", "nb_DGO", "axis", "source",
+#   "sum_length", "length_meander", "drainage_area", "roe",
+#   "mean_enveloppe", "Delta_AC", "Lag_AC",
+#   "Delta_AC_relatif", "Lag_AC_relatif", "measure",
+#   "mean_angle_deg", "nb_0_na" , "mean_idx_conf", "mean_VB",
+#   "mean_amplitude" , "mean_active_channel_pc", "mean_water_channel_pc",
+#   "mean_forest_pc", "mean_grassland_pc", "mean_crops_pc",
+#   "mean_diffuse_urban_pc", "mean_dense_urban_pc", "mean_infrastructures_pc",
+#   "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
+#   "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
+#   "mean_gravel_bars_pc", "gid_region", "strahler", "noeudfinal","retenue",
+#   "zero_na_pct", "mean_elevation", "mean_Slope_VB", "nb_WC_0_or_na"
+# )
 
 
 

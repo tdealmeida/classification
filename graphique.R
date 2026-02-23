@@ -1,18 +1,19 @@
 palette_lits <- c(
   "rectiligne" = "#aac1cf",
   "rectiligne bars" = "#6baed6",
-  "Pas de lit" = "#202020",
-  "intermittent" = "#a7a7a7",
+  # "Pas de lit" = "#202020",
+  # "intermittent" = "#a7a7a7",
   "sinueux" = "#2f76aa",
   "sinueux ba" = "#08519c",
   "meandre passif" = "#756bb1",
   "meandre actif" = "#54278f",
   "tresse" = "#ffd500",
-  "tresse intermittent" = "#eae9ab",
+  # "tresse intermittent" = "#eae9ab",
   "tresse vegetal" = "#9acd32",
   "divagant" = "#e69f00",
   "retenue" = "#2227db",
-  "anamostose" = "#b410d5"
+  "anamostose" = "#b410d5",
+  "diffus" = "#fcb4b1"
 )
 
 
@@ -122,23 +123,23 @@ ordre_lits <- c(
   "tresse",
   "tresse vegetal",
   "anamostose",
-  "tresse intermittent",
-  "intermittent",
-  "retenue",
-  "Pas de lit"
+  "diffus",
+  # "tresse intermittent",
+  # "intermittent",
+  "retenue"
+  # "Pas de lit"
 )
 
 # histogramme du nb de sgments homogènes par classe
 resultat_final %>%
   mutate(Prediction = factor(Prediction, levels = ordre_lits)) %>%
-  # filter(!Prediction == "Pas de lit") %>%
   ggplot() +
   aes(x = Prediction) +
   geom_bar(aes(fill = Prediction)) +
   scale_fill_manual(values = palette_lits) +
   theme_minimal() + 
-  labs(y = "Nombre de segments homogènes", 
-       x = "Type de lit") +
+  labs(y = "Number of Homogeneous River Reaches", 
+       x = "Planform") +
   theme(
     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
     legend.position = "none"
@@ -469,7 +470,7 @@ circos.trackPlotRegion(
 
 
 palette_continuité <- c(
-  "Espace_eau" = "#0050c8",
+  # "Espace_eau" = "#0050c8",
   "Espace_bancs" = "#8cc1da",
   "Espace_naturel" = "#1d8641",
   "Espace_semi_naturel" = "#d2e68a",
@@ -479,7 +480,7 @@ palette_continuité <- c(
 )
 
 ordre_continuité <- c(
-  "Espace_eau",
+  # "Espace_eau",
   "Espace_bancs",
   "Espace_naturel",
   "Espace_semi_naturel",
@@ -503,7 +504,7 @@ test_continuité <- resultat_conf %>%
   ) %>%
   group_by(style_confinement) %>%
   summarize(
-    Espace_eau = mean(mean_water_channel_pc, na.rm = TRUE),
+    # Espace_eau = mean(mean_water_channel_pc, na.rm = TRUE),
     Espace_bancs = mean(mean_gravel_bars_pc, na.rm = TRUE),
     Espace_naturel = mean(mean_riparian_corridor_pc, na.rm = TRUE),
     Espace_semi_naturel = mean(mean_semi_natural_pc, na.rm = TRUE),

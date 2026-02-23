@@ -22,6 +22,7 @@ library(concaveman)
 # options(scipen = 0)
 
 # Data$axis <- as.numeric(Data$axis)
+Data <- st_read("Data_DGO.gpkg")
 
 # ============================================
 # 2. Génération d'un tableau 
@@ -179,14 +180,17 @@ metrique <- metrique %>%
 # ============================================
 # 12. Enveloppe Méandrage
 # ============================================
-enveloppe <- st_read("enveloppe_concave.gpkg") %>%
+enveloppe <- st_read("enveloppe_concave.gpkg") 
+
+# %>%
   st_drop_geometry() %>%
   dplyr::select(M,VALUE,AXIS_2, enveloppe) %>%
   group_by(AXIS_2, M) %>%
   filter(if(n() > 1) VALUE == 2 else TRUE) %>%
   slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
   ungroup() %>%
-  dplyr::select(-VALUE)
+  dplyr::select(-VALUE) %>%
+  rename(meander_belt = enveloppe)
 
 metrique <- metrique %>%
   left_join(enveloppe, by = c("axis"= "AXIS_2", "measure_medial_axis" ="M"))
@@ -339,9 +343,9 @@ iles <- st_read("iles_vegetalise.gpkg") %>%
 
 metrique <- metrique %>%
   left_join(iles %>% 
-              mutate(ile_vege = 2), 
+              mutate(ile_veget = 2), 
             by = c("axis", "measure_medial_axis")) %>%
-  mutate(ile_vege = ifelse(is.na(ile_vege), 1, ile_vege))
+  mutate(ile_veget = ifelse(is.na(ile_veget), 1, ile_veget))
 
 
 
@@ -364,12 +368,12 @@ metrique <- metrique %>%
 # ============================================
 # . amplitude
 # ============================================
-ampli <- st_read("amplitude.gpkg") %>%
-  st_drop_geometry() %>%
-  select(axis, measure, amplitude) 
-
-metrique <- metrique %>%
-  inner_join(ampli, by = c("axis", "measure"))
+# ampli <- st_read("amplitude.gpkg") %>%
+#   st_drop_geometry() %>%
+#   select(axis, measure, amplitude) 
+# 
+# metrique <- metrique %>%
+#   inner_join(ampli, by = c("axis", "measure"))
 
 
 

@@ -1,37 +1,58 @@
+
+
+margins_VB <- st_read("margins_VB.gpkg") %>%
+  st_drop_geometry() %>%
+  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
+  rename(medial_axis = M,
+         axis = AXIS,
+         conf_degree = longueur_margins) %>%
+  select(axis, medial_axis, conf_degree)
+  
+margins_VB_rmc <- st_read("margins_VB_rmc.gpkg") %>%
+  st_drop_geometry() %>%
+  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
+  rename(medial_axis = M,
+         axis = AXIS,
+         conf_degree = longueur_margins) %>%
+  select(axis, medial_axis, conf_degree)
+
+margins_VB_sum <- bind_rows(margins_VB, margins_VB_rmc)
+
+
 table(resultat_final$Prediction)
 
 resultat_conf <- resultat_final %>%
   mutate(
-    mean_enveloppe = mean_enveloppe/100,
+    mean_meander_belt = mean_meander_belt/100,
     confinement = case_when(
       Prediction %in% c("rectiligne", "rectiligne bars", "sinueux", "sinueux ba", 
-                        "meandre passif", "meandre actif", "intermittent") & mean_enveloppe > 0.7 ~ "contraint",
+                        "meandre passif", "meandre actif") & mean_meander_belt > 0.7 ~ "contraint",
       Prediction %in% c("rectiligne", "rectiligne bars", "sinueux", "sinueux ba", 
-                        "meandre passif", "meandre actif", "intermittent") & mean_enveloppe > 0.4 & mean_enveloppe <= 0.7 ~ "partially contraint",
+                        "meandre passif", "meandre actif") & mean_meander_belt > 0.4 & mean_meander_belt <= 0.7 ~ "partially contraint",
       Prediction %in% c("rectiligne", "rectiligne bars", "sinueux", "sinueux ba", 
-                        "meandre passif", "meandre actif", "intermittent") & mean_enveloppe <= 0.4 ~ "non contraint",
-      Prediction %in% c("tresse", "tresse vegetal","tresse intermittent", 
+                        "meandre passif", "meandre actif") & mean_meander_belt <= 0.4 ~ "non contraint",
+      Prediction %in% c("tresse", "tresse vegetal", 
                         "divagant") & mean_idx_conf > 0.7 ~ "contraint",
-      Prediction %in% c("tresse", "tresse vegetal","tresse intermittent", 
+      Prediction %in% c("tresse", "tresse vegetal", 
                         "divagant") & mean_idx_conf > 0.4 & mean_idx_conf <= 0.7 ~ "partially contraint",
-      Prediction %in% c("tresse", "tresse vegetal","tresse intermittent", 
+      Prediction %in% c("tresse", "tresse vegetal", 
                         "divagant") & mean_idx_conf <= 0.4 ~ "non contraint",
-      Prediction %in% c("anamostose") & mean_idx_conf > 0.7 ~ "contraint",
-      Prediction %in% c("anamostose") & mean_idx_conf > 0.4 & mean_idx_conf <= 0.7 ~ "partially contraint",
-      Prediction %in% c("anamostose") & mean_idx_conf <= 0.4 ~ "non contraint",
-      TRUE ~ Prediction
+      Prediction %in% c("anastomose") & mean_idx_conf > 0.7 ~ "contraint",
+      Prediction %in% c("anastomose") & mean_idx_conf > 0.4 & mean_idx_conf <= 0.7 ~ "partially contraint",
+      Prediction %in% c("anastomose") & mean_idx_conf <= 0.4 ~ "non contraint",
+      TRUE ~ NA_character_
     )
   )
 
 resultat_conf <- resultat_conf %>%
   mutate(
     style_confinement_simple = case_when(
-      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "contraint" ~ "rectiligne confined",
-      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "partially contraint" ~ "rectiligne semi-confined",
-      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "non contraint" ~ "rectiligne endigué",
-      Prediction %in% c("sinueux", "sinueux ba") & confinement == "contraint" ~ "sinueux confined",
-      Prediction %in% c("sinueux", "sinueux ba") & confinement == "partially contraint" ~ "sinueux semi-confined",
-      Prediction %in% c("sinueux", "sinueux ba") & confinement == "non contraint" ~ "sinueux no confined",
+      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "contraint" ~ "Straight confined",
+      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "partially contraint" ~ "Straight semi-confined",
+      Prediction %in% c("rectiligne", "rectiligne bars") & confinement == "non contraint" ~ "Straight no confined",
+      Prediction %in% c("sinueux", "sinueux ba") & confinement == "contraint" ~ "sinuous confined",
+      Prediction %in% c("sinueux", "sinueux ba") & confinement == "partially contraint" ~ "sinuous semi-confined",
+      Prediction %in% c("sinueux", "sinueux ba") & confinement == "non contraint" ~ "sinuous no confined",
       Prediction %in% c("meandre passif", "meandre actif") & confinement == "contraint" ~ "incised meander",
       Prediction %in% c("meandre passif", "meandre actif") & confinement == "partially contraint" ~ "meander semi-confined",
       Prediction %in% c("meandre passif", "meandre actif") & confinement == "non contraint" ~ "free meander",
@@ -41,12 +62,9 @@ resultat_conf <- resultat_conf %>%
       Prediction %in% c("divagant") & confinement == "contraint" ~ "wandering confined",
       Prediction %in% c("divagant") & confinement == "partially contraint" ~ "wandering semi-confined",
       Prediction %in% c("divagant") & confinement == "non contraint" ~ "free wandering",
-      Prediction %in% c("anamostose") & confinement == "contraint" ~ "anastomosed confined",
-      Prediction %in% c("anamostose") & confinement == "partially contraint" ~ "anastomosed semi-confined",
-      Prediction %in% c("anamostose") & confinement == "non contraint" ~ "free anastomosed",
-      Prediction %in% c("intermittent") & confinement == "contraint" ~ "intermittent confined",
-      Prediction %in% c("intermittent") & confinement == "partially contraint" ~ "intermittent semi-confined",
-      Prediction %in% c("intermittent") & confinement == "non contraint" ~ "intermittent no confined",
+      Prediction %in% c("anastomose") & confinement == "contraint" ~ "anastomosed confined",
+      Prediction %in% c("anastomose") & confinement == "partially contraint" ~ "anastomosed semi-confined",
+      Prediction %in% c("anastomose") & confinement == "non contraint" ~ "free anastomosed",
       TRUE ~ confinement
     )
   )
@@ -72,6 +90,9 @@ resultat_conf <- resultat_conf %>%
         Prediction %in% c("meandre bars") & confinement == "contraint" ~ "incised meander bars",
         Prediction %in% c("meandre bars") & confinement == "partially contraint" ~ "meander bars semi-confined ",
         Prediction %in% c("meandre bars") & confinement == "non contraint" ~ "free meander bars",
+        Prediction %in% c("divagant") & confinement == "contraint" ~ "Artificialised",
+        Prediction %in% c("divagant") & confinement == "partially contraint" ~ "wandering semi-confined",
+        Prediction %in% c("divagant") & confinement == "non contraint" ~ "free wandering",
         Prediction %in% c("tresse") & confinement == "contraint" ~ "braided confined",
         Prediction %in% c("tresse") & confinement == "partially contraint" ~ "braided semi-confined",
         Prediction %in% c("tresse") & confinement == "non contraint" ~ "free braided",

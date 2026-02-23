@@ -18,6 +18,7 @@
 # 1. Chargement des Bibliothèques
 # ============================================
 library(dplyr)
+# detach("package:dplyr", unload = TRUE)
 library(RPostgreSQL)
 library(purrr)
 library(tidyr)
@@ -48,60 +49,30 @@ data <- sf::st_read(dsn = con, query = query)
 # Import des ROE de RMC
 # query <- "SELECT * FROM roe WHERE gid_region IN ('11')" # pour l'Isère
 # query <- "SELECT * FROM roe WHERE gid_region IN ('11','33','16','31')" # pour bassin du Rhône
-query <- "SELECT * FROM roe WHERE gid_region IN ('11','33','16','31','26')" # pour RMC
-# query <- "SELECT * FROM roe" # pour France
+# query <- "SELECT * FROM roe WHERE gid_region IN ('11','33','16','31','26')" # pour RMC
+query <- "SELECT * FROM roe" # pour France
 roe <- sf::st_read(dsn = con, query = query) 
     
 dbDisconnect(con) # Fermeture de la connexion à la base de données
 
 # ------------------------------------------------
-# 4. Filtrage des petits DGO NA (<20m) inter DGO
+# 3. Filtrage des petits DGO NA (<20m) inter DGO
 # ------------------------------------------------
+data <- data %>%
+  select(-fid)
+
 Data <- data %>%
-  mutate(length = as.numeric(st_length(geom))) %>%  
-  filter(!(is.na(measure_medial_axis) & length < 20))
+  mutate(length = as.numeric(st_length(geom))) %>%
+  filter(!(is.na(measure_medial_axis) & length < 20)) 
 
 # ------------------------------------------------
-# 5. Calcul du % de NA ou 0 par axe (sans géométrie)
+# 4. Export des données
 # ------------------------------------------------
-pourcentage_df <- Data %>%
-  st_drop_geometry() %>%           # ⬅️ énorme gain de perf
-  group_by(axis) %>%
-  summarise(
-    pourcentage_na_ou_zero =
-      mean(is.na(active_channel_width) | active_channel_width == 0) * 100,
-    .groups = "drop"
-  )
+st_write(Data, "Data_DGO_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(data, "data_DGO_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 # ------------------------------------------------
-# 6. Sélection des axes valides
-# ------------------------------------------------
-toponymes_valides <- pourcentage_df$axis[
-  pourcentage_df$pourcentage_na_ou_zero < 80
-]
-
-# ------------------------------------------------
-# 7. Filtrage final (sans %in%)
-# ------------------------------------------------
-Data <- Data %>%
-  semi_join(
-    tibble(axis = toponymes_valides),
-    by = "axis"
-  ) %>%
-  select(-fid) %>%
-  left_join(pourcentage_df %>% select(axis, pourcentage_na_ou_zero),
-            by = "axis") %>%
-  arrange(axis, measure)
-
-# ------------------------------------------------
-# 7. Export des données
-# ------------------------------------------------
-st_write(Data, "Data_DGO_filtre.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
-write.csv(Data, "Data_DGO_filtre.csv", row.names = FALSE) # Export des données nettoyées en shapefile
-
-
-# ------------------------------------------------
-# 7. Import des surfaces drainées par bassin
+# 5. Import des surfaces drainées par bassin
 # ------------------------------------------------
 surface_drainee_rhone <- read.csv("Data/RMC/Rhone/DRAINAGE_AREA_rhone.csv")
 surface_drainee_med <- read.csv("Data/RMC/med/DRAINAGE_AREA_med.csv")
@@ -133,53 +104,108 @@ surface_drainee <- rbind(surface_drainee_rhone,
 )
 
 # ------------------------------------------------
-# 7. Import des meander belt par bassin
+# 6. Import des meander belt par bassin
 # ------------------------------------------------
 meanderbelt_rmc <- st_read("Data/RMC/meanderbelt_RMC.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe)
+  select(M, AXIS_2, enveloppe,VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_rhin <- st_read("Data/Rhin/meanderbelt_rhin.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_loire <- st_read("Data/Loire/meanderbelt_loire.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_seine <- st_read("Data/Seine/meanderbelt_seine.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_nord <- st_read("Data/Nord/meanderbelt_nords.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_garonne <- st_read("Data/Garonne/meanderbelt_garonne.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_adour <- st_read("Data/Adour/meanderbelt_adour.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_charente <- st_read("Data/Charente/meanderbelt_charente.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_moselle <- st_read("Data/Moselle/meanderbelt_moselle.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_meuse <- st_read("Data/Meuse/meanderbelt_meuse.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe) 
+  select(M, AXIS_2, enveloppe, VALUE) %>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
 meanderbelt_bretagne <- st_read("Data/Bretagne/meanderbelt_bretagne.gpkg") %>%
   st_drop_geometry() %>%
-  select(M, AXIS_2, enveloppe)
+  select(M, AXIS_2, enveloppe, VALUE)%>%
+  group_by(AXIS_2, M) %>%
+  filter(if(n() > 1) VALUE == 2 else TRUE) %>%
+  slice_max(enveloppe, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(-VALUE)
 
-mmeander_belt <- rbind(meanderbelt_rmc,
+meander_belt <- rbind(meanderbelt_rmc,
                          meanderbelt_rhin,
                          meanderbelt_loire,
                          meanderbelt_seine,
@@ -192,10 +218,30 @@ mmeander_belt <- rbind(meanderbelt_rmc,
                          meanderbelt_bretagne
 )
 
+
 # ------------------------------------------------
-# 7. Import des chenal forms par bassin
+# 7. Import du confinement degree
 # ------------------------------------------------
-chenal_forme_rhone <- read.csv("Data/RMC/chenal_props_rmc.csv")
+margins_VB <- st_read("margins_VB.gpkg") %>%
+  st_drop_geometry() %>%
+  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
+  rename(measure_medial_axis = M,
+         axis = AXIS) %>%
+  select(axis, measure_medial_axis, longueur_margins)
+
+margins_VB_rmc <- st_read("margins_VB_rmc.gpkg") %>%
+  st_drop_geometry() %>%
+  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
+  rename(measure_medial_axis = M,
+         axis = AXIS) %>%
+  select(axis, measure_medial_axis, longueur_margins)
+
+margins_VB_sum <- bind_rows(margins_VB, margins_VB_rmc)
+
+# ------------------------------------------------
+# 8. Import des chenal forms par bassin
+# ------------------------------------------------
+chenal_forme_rmc <- read.csv("Data/RMC/chenal_props_rmc.csv")
 chenal_forme_rhin <- read.csv("Data/Rhin/chenal_props_rhin.csv")
 # chenal_forme_loire <- read.csv("Data/Loire/chenal_props_loire.csv") manque loire
 chenal_forme_seine <- read.csv("Data/Seine/chenal_props_seine.csv")
@@ -207,9 +253,7 @@ chenal_forme_moselle <- read.csv("Data/Moselle/chenal_props_moselle.csv")
 chenal_forme_meuse <- read.csv("Data/Meuse/chenal_props_meuse.csv")
 chenal_forme_bretagne <- read.csv("Data/Bretagne/chenal_props_bretagne.csv")
 
-chenal_forme <- rbind(chenal_forme_rhone,
-                      chenal_forme_med,
-                      chenal_forme_corse,
+chenal_forme <- rbind(chenal_forme_rmc,
                       chenal_forme_rhin,
                       # chenal_forme_loire,
                       chenal_forme_seine,
@@ -223,7 +267,7 @@ chenal_forme <- rbind(chenal_forme_rhone,
 )
 
 # ------------------------------------------------
-# 7. Import des DGO label
+# 9. Import des labels pour le RF du multichenal
 # ------------------------------------------------
 chenal_labels <- st_read("DGO_label.shp") %>%
   rename(geom = geometry) %>%
@@ -233,8 +277,9 @@ chenal_labels <- st_read("DGO_label.shp") %>%
   slice(1) %>%        # garder une seule ligne par couple (AXIS, M)
   ungroup()
 
+
 # ------------------------------------------------
-# 7. Import des îles végétalisées par bassin
+# 10. Import des îles végétalisées par bassin
 # ------------------------------------------------
 iles_veget_rmc <- st_read("Data/RMC/iles_veget_rmc.gpkg") %>%
   st_drop_geometry() %>%
@@ -294,7 +339,7 @@ iles_veget <- rbind(iles_veget_rmc,
 )
   
 # ------------------------------------------------
-# 7. Import des retenues par bassin
+# 11. Import des retenues par bassin
 # ------------------------------------------------
 retenue_rmc <- st_read("Data/RMC/retenue_rmc.gpkg") %>%
   st_drop_geometry() %>%
@@ -340,7 +385,7 @@ retenue_bretagne <- st_read("Data/Bretagne/retenue_bretagne.gpkg") %>%
   st_drop_geometry() %>%
   select(AXIS, M)
 
-retenue <- rbind(retenue_rmc,
+retenu <- rbind(retenue_rmc,
                      retenue_rhin,
                      retenue_loire,
                      retenue_seine,
@@ -354,18 +399,79 @@ retenue <- rbind(retenue_rmc,
 )
 
 # ------------------------------------------------
-# 7. supprimer de l'environnement les objets temporaires
+# 12. Import des meander belt axis par bassin
+# ------------------------------------------------
+meanderbelt_axis_rmc <- st_read("Data/RMC/meanderbelt_axis_RMC.gpkg") %>%
+  st_transform(2154) %>%
+  select(axis, toponyme)
+
+meanderbelt_axis_rhin <- st_read("Data/Rhin/meanderbelt_axis_rhin.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_loire <- st_read("Data/Loire/meanderbelt_axis_loire.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_seine <- st_read("Data/Seine/meanderbelt_axis_seine.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_nord <- st_read("Data/Nord/meanderbelt_axis_nords.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_garonne <- st_read("Data/Garonne/meanderbelt_axis_garonne.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_adour <- st_read("Data/Adour/meanderbelt_axis_adour.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_charente <- st_read("Data/Charente/meanderbelt_axis_charente.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_moselle <- st_read("Data/Moselle/meanderbelt_axis_moselle.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_meuse <- st_read("Data/Meuse/meanderbelt_axis_meuse.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis_bretagne <- st_read("Data/Bretagne/meanderbelt_axis_bretagne.gpkg") %>%
+  st_transform(2154)%>%
+  select(axis, toponyme)
+
+meanderbelt_axis <- rbind(meanderbelt_axis_rmc,
+                         meanderbelt_axis_rhin,
+                         meanderbelt_axis_loire,
+                         meanderbelt_axis_seine,
+                         meanderbelt_axis_nord,
+                         meanderbelt_axis_garonne,
+                         meanderbelt_axis_adour,
+                         meanderbelt_axis_charente,
+                         meanderbelt_axis_moselle,
+                         meanderbelt_axis_meuse,
+                         meanderbelt_axis_bretagne
+)
+
+# ------------------------------------------------
+# 13. supprimer de l'environnement les objets temporaires
 # ------------------------------------------------
 rm(query, con,pourcentage_df, toponymes_valides, surface_drainee_rhone, 
    surface_drainee_med, surface_drainee_corse, surface_drainee_rhin,
    surface_drainee_loire, surface_drainee_seine, surface_drainee_nord,
    surface_drainee_garonne, surface_drainee_adour, surface_drainee_charente,
    surface_drainee_moselle, surface_drainee_meuse, surface_drainee_bretagne,
-   meander_belt_rhone, meander_belt_med, meander_belt_corse, meander_belt_rhin,
-   meander_belt_loire, meander_belt_seine, meander_belt_nord,
-   meander_belt_garonne, meander_belt_adour, meander_belt_charente,
-   meander_belt_moselle, meander_belt_meuse, meander_belt_bretagne,
-   chenal_forme_rhone, chenal_forme_med, chenal_forme_corse, chenal_forme_rhin,
+   meanderbelt_rmc, meanderbelt_rhin,
+   meanderbelt_loire, meanderbelt_seine, meanderbelt_nord,
+   meanderbelt_garonne, meanderbelt_adour, meanderbelt_charente,
+   meanderbelt_moselle, meanderbelt_meuse, meanderbelt_bretagne,
+   margins_VB, margins_VB_rmc,
+   chenal_forme_rmc, chenal_forme_rhin,
    chenal_forme_loire, chenal_forme_seine, chenal_forme_nord,
    chenal_forme_garonne, chenal_forme_adour, chenal_forme_charente,
    chenal_forme_moselle, chenal_forme_meuse, chenal_forme_bretagne,
@@ -376,50 +482,12 @@ rm(query, con,pourcentage_df, toponymes_valides, surface_drainee_rhone,
    retenue_rmc, retenue_rhin, retenue_loire,
    retenue_seine, retenue_nord, retenue_garonne,
    retenue_adour, retenue_charente, retenue_moselle,
-   retenue_meuse, retenue_bretagne
+   retenue_meuse, retenue_bretagne, 
+   meanderbelt_axis_rmc, meanderbelt_axis_rhin, meanderbelt_axis_loire,
+   meanderbelt_axis_seine, meanderbelt_axis_nord, meanderbelt_axis_garonne,
+   meanderbelt_axis_adour, meanderbelt_axis_charente,
+   meanderbelt_axis_moselle, meanderbelt_axis_meuse, meanderbelt_axis_bretagne
 )
-
-
-
-
-
-
-
-
-# # ============================================
-# # 3. Préparation des Données : Filtrage
-# # ============================================
-# Data <- data %>%
-#   mutate(length = as.numeric(st_length(geom))) %>%  # conversion en numeric
-#   filter(!(is.na(measure_medial_axis) & length < 20))   # suppression des segments <20m sans données
-# # filter(!(is.na(measure_medial_axis)))
-# 
-# pourcentage_df <- Data %>% # Sélection des axes avec données (+80% de données valides)
-#   mutate(is_na_or_zero = is.na(active_channel_width) | active_channel_width == 0) %>%
-#   group_by(axis) %>%
-#   summarise(pourcentage_na_ou_zero = mean(is_na_or_zero, na.rm = TRUE) * 100)
-# 
-# # st_write(pourcentage_df, "pourcentage_na_ou_zero.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
-# 
-# toponymes_valides <- pourcentage_df %>% # Filtrage des toponymes avec moins de 80% de NA ou de zéros
-#   filter(pourcentage_na_ou_zero < 80) %>%
-#   pull(axis)
-# 
-# # Data <- Data %>%
-# #   filter(axis %in% toponymes_valides) %>%
-# #   select(-fid) %>% # Suppression de la colonne 'fid' si elle existe
-# #   filter(!is.na(valley_bottom_width)) # Bug dans la carte de conitnuité qui oblige de supprimer l'amont des rivières les + à l'est
-# 
-# 
-# Data <- Data %>%
-#   filter(axis %in% toponymes_valides) %>%
-#   select(-fid) %>%  # Suppression de la colonne 'fid' si elle existe
-#   arrange(axis, measure)
-
-
-
-
-
 
 
 

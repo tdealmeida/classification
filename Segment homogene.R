@@ -1,6 +1,7 @@
 library(changepoint)
 library(stringr)
 
+length(unique(metrique$axis))
 
 metrique <- metrique %>%
   mutate(
@@ -148,7 +149,9 @@ process_toponyme <- function(top) {
       mean_idx_water = safe_mean_idx_water(idx_water),
       across(c(AC, VB, WC, 
                Slope_talweg, Slope_VB, elevation, idx_conf,
-               ACW_star, enveloppe, amplitude, angle_deg,
+               ACW_star, meander_belt,
+               # amplitude, 
+               angle_deg,
                # stream_power,
                water_channel_pc, gravel_bars_pc, natural_open_pc, 
                forest_pc, grassland_pc, crops_pc, diffuse_urban_pc, 
@@ -157,13 +160,14 @@ process_toponyme <- function(top) {
                disconnected_pc_corrige, built_environment_pc
                ), 
              ~ mean(.x, na.rm = TRUE), .names = "mean_{.col}"),
-      nb_WC_0_or_na = sum(WC == 0 | is.na(WC)),
-      zero_na_pct = nb_WC_0_or_na / nb_DGO * 100,
+      nb_na = sum(is.na(WC)),
+      na_pct = nb_na / nb_DGO * 100,
       multi_chenal = value_pct(multi_chenaux, val = 2),   #
-      iles_veget = value_pct(ile_vege, val = 2),       #
+      iles_veget = value_pct(ile_veget, val = 2),       #
       retenue = value_pct(reservoir, val = 2),       #
-      roe = min(roe, na.rm = TRUE),               # ✅ min au lieu de moyenne
+      # roe = min(roe, na.rm = TRUE),               # ✅ min au lieu de moyenne
       sum_length = sum(length, na.rm = TRUE),
+      sum_conf_degree = sum(conf_degree, na.rm = TRUE),
       drainage_area = max(drainage_area, na.rm = TRUE),
       .groups = "drop"
     ) %>%
