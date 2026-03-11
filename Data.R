@@ -26,6 +26,8 @@ library(sf)
 library(ggplot2)
 library(zoo)  
 library(patchwork)
+library(circlize)
+
 
 # ============================================
 # 2. Import des métriques depuis la base de données FCT  
@@ -401,31 +403,33 @@ retenu <- rbind(retenue_rmc,
 # ------------------------------------------------
 # 12. Import des meander belt axis par bassin
 # ------------------------------------------------
-meanderbelt_axis_rmc <- st_read("Data/RMC/meanderbelt_axis_RMC.gpkg") %>%
+meanderbelt_axis_rmc <- st_read("Data/RMC/meanderbelt_axis_RMC_2.shp") %>%
   st_transform(2154) %>%
+  rename(geom = geometry) %>%
   select(axis, toponyme)
 
-meanderbelt_axis_rhin <- st_read("Data/Rhin/meanderbelt_axis_rhin.gpkg") %>%
+meanderbelt_axis_rhin <- st_read("Data/Rhin/meanderbelt_axis_rhin_2.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 
-meanderbelt_axis_loire <- st_read("Data/Loire/meanderbelt_axis_loire.gpkg") %>%
+meanderbelt_axis_loire <- st_read("Data/Loire/meanderbelt_axis_loire_3.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 
-meanderbelt_axis_seine <- st_read("Data/Seine/meanderbelt_axis_seine.gpkg") %>%
+meanderbelt_axis_seine <- st_read("Data/Seine/meanderbelt_axis_seine_2.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 
-meanderbelt_axis_nord <- st_read("Data/Nord/meanderbelt_axis_nords.gpkg") %>%
+meanderbelt_axis_nord <- st_read("Data/Nord/meanderbelt_axis_nords_2.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 
-meanderbelt_axis_garonne <- st_read("Data/Garonne/meanderbelt_axis_garonne.gpkg") %>%
+meanderbelt_axis_garonne <- st_read("Data/Garonne/meanderbelt_axis_garonne_3.gpkg") %>%
   st_transform(2154)%>%
+  # rename(geom = geometry) %>%
   select(axis, toponyme)
 
-meanderbelt_axis_adour <- st_read("Data/Adour/meanderbelt_axis_adour.gpkg") %>%
+meanderbelt_axis_adour <- st_read("Data/Adour/meanderbelt_axis_adour_3.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 
@@ -433,7 +437,7 @@ meanderbelt_axis_charente <- st_read("Data/Charente/meanderbelt_axis_charente.gp
   st_transform(2154)%>%
   select(axis, toponyme)
 
-meanderbelt_axis_moselle <- st_read("Data/Moselle/meanderbelt_axis_moselle.gpkg") %>%
+meanderbelt_axis_moselle <- st_read("Data/Moselle/meanderbelt_axis_moselle_2.gpkg") %>%
   st_transform(2154)%>%
   select(axis, toponyme)
 

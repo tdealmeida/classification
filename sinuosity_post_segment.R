@@ -14,6 +14,12 @@ library(qgisprocess)  # Exécution d'algorithmes QGIS depuis R)
 # meander_belt_axis <- st_read("meanderbelt_RMC.gpkg")
 meander_belt_axis <- meanderbelt_axis # calculé dans Data
 
+meander_belt_axis <- meanderbelt_axis %>%
+  group_by(axis) %>%
+  mutate(geom = st_line_merge(geom))
+
+
+# Data_points <- st_read("rupture.gpkg")
 rupture_points <- Data_points %>%
   ungroup() %>%   # Retirer tout groupement éventuel
   mutate(ID = seq_len(n())) %>%
@@ -22,56 +28,8 @@ rupture_points <- Data_points %>%
 
 
 # =====================================================================
-# SNAP : Alignement des ruptures sur l’axe médian VB
-# =====================================================================
-# Liste vide pour stocker les résultats intermédiaires (par AXIS)
-# rupture_snap_sf_list <- list()
-# 
-# # Extraction des valeurs uniques d’AXIS
-# axes_unique <- unique(rupture_points$AXIS)
-# total_axes <- length(axes_unique)
-# 
-# # Boucle sur chaque valeur d’AXIS
-# for(i in seq_along(axes_unique)) {
-#   
-#   # AXIS courant
-#   axis_value <- axes_unique[i]
-#   
-#   # Sélection des ruptures et axe correspondant
-#   rupture_group <- rupture_points %>% filter(AXIS == axis_value)
-#   medial_axis_group <- medial_axis_VB %>% filter(AXIS == axis_value)
-#   
-#   # Message de suivi dans la console
-#   cat(sprintf("Traitement de l'AXIS %s (%d sur %d)\n",
-#               axis_value, i, total_axes))
-#   
-#   # Exécution de l'algorithme QGIS : Snap
-#   snap_result <- qgis_run_algorithm(
-#     "native:snapgeometries",
-#     INPUT = rupture_group,              # Géométries à aligner
-#     REFERENCE_LAYER = medial_axis_group, # Référence : medial axis
-#     TOLERANCE = 10000,                  # Distance de tolérance (en unités projetées)
-#     BEHAVIOR = 1                        # Stratégie de snap
-#   )
-#   
-#   # Lecture du résultat et ajout de l’AXIS
-#   snap_sf <- st_read(snap_result$OUTPUT) %>%
-#     mutate(AXIS = axis_value)
-#   
-#   # Stockage du résultat dans la liste
-#   rupture_snap_sf_list[[as.character(axis_value)]] <- snap_sf
-# }
-# 
-# # Combinaison des résultats individuels en un seul sf
-# rupture_snap_VB <- do.call(rbind, rupture_snap_sf_list)
-
-
-
-
-# =====================================================================
 # SNAP : Alignement des ruptures sur l’axe médian Meander_belt
 # =====================================================================
-
 # Liste vide pour stocker les résultats intermédiaires (par AXIS)
 rupture_snap_sf_list <- list()
 
@@ -88,6 +46,7 @@ for(i in seq_along(axes_unique)) {
   # Sélection des ruptures et axe correspondant
   rupture_group <- rupture_points %>% filter(axis == axis_value)
   medial_axis_group <- meander_belt_axis %>% filter(axis == axis_value)
+  # midpoint_group <- Data_points_mid %>% filter(axis == axis_value)
   
   # Message de suivi dans la console
   cat(sprintf("Traitement de l'AXIS %s (%d sur %d)\n",
@@ -108,33 +67,38 @@ for(i in seq_along(axes_unique)) {
   
   # Stockage du résultat dans la liste
   rupture_snap_sf_list[[as.character(axis_value)]] <- snap_sf
+  
+  
+  # # Exécution de l'algorithme QGIS : Snap
+  # snap_midpoint <- qgis_run_algorithm(
+  #   "native:snapgeometries",
+  #   INPUT = midpoint_group,              # Géométries à aligner
+  #   REFERENCE_LAYER = medial_axis_group, # Référence : medial axis
+  #   TOLERANCE = 10000,                  # Distance de tolérance (en unités projetées)
+  #   BEHAVIOR = 1                        # Stratégie de snap
+  # )
+  # 
+  # # Lecture du résultat et ajout de l’AXIS
+  # snap <- st_read(snap_midpoint$OUTPUT) %>%
+  #   mutate(axis = axis_value)
+  # 
+  # # Stockage du résultat dans la liste
+  # midpoint_snap_sf_list[[as.character(axis_value)]] <- snap
+  # 
+  
 }
 
 # Combinaison des résultats individuels en un seul sf
 rupture_snap_meander <- do.call(rbind, rupture_snap_sf_list)
+# midpoint_snap <- do.call(rbind, midpoint_snap_sf_list)
 
 
 # =====================================================================
 # Zone tampon autour des points de rupture
 # =====================================================================
-# rupture_buffer_VB <- st_buffer(rupture_snap_VB, dist = 1)
 rupture_buffer_meander <- st_buffer(rupture_snap_meander, dist = 1)
 
-# =====================================================================
-# Découpage de l'axe médian VB aux points de rupture
-# =====================================================================
-# result <- qgis_run_algorithm(
-#   "native:splitwithlines",
-#   INPUT = medial_axis_VB,        # lignes à couper
-#   LINES  = rupture_buffer_VB,   # points de découpe
-# )
-# medial_axis_segments_sf <- st_read(result$OUTPUT)
-# 
-# medial_VB <- medial_axis_segments_sf %>%
-#   mutate(length_VB = as.numeric(st_length(geom))) %>%
-#   filter(length_VB > 10)   # filtrer les segments trop petits
 
-# =====================================================================
 
 
 result <- qgis_run_algorithm(
@@ -149,18 +113,11 @@ medial_meander <- medial_axis_segments_sf %>%
   filter(length_meander > 10)   # filtrer les segments trop petits
 
 
-# =====================================================================
+# ====================================================================
 # Attribution des segments découpés aux segments homogènes
 # =====================================================================
 
 TGH <- st_transform(TGH, 2154)
-
-# medial_VB <- medial_VB %>%
-#   rename(axis = AXIS) %>%
-#   filter(axis %in% unique(TGH$axis)) %>%
-#   group_by(axis) %>%
-#   mutate(ID_segment = row_number()) %>%
-#   st_drop_geometry()
 
 medial_meander <- medial_meander %>%
   filter(axis %in% unique(TGH$axis)) %>%
@@ -184,7 +141,8 @@ TGH_ID <- TGH %>%
 TGH_ID <- TGH_ID %>%
   mutate(
         # Sinuosity_VB = as.numeric(sum_length) / as.numeric(length_VB),
-        Sinuosity_meander = as.numeric(sum_length) / as.numeric(length_meander)
+        Sinuosity_meander_1 = as.numeric(sum_length) / as.numeric(length_meander),
+        Sinuosity_meander_2 = as.numeric(longueur_data) / as.numeric(length_meander)
          )
 
 
@@ -330,20 +288,20 @@ TGH_classif_simplifie <- TGH_ID %>%
       noeud4 == "tresse" & iles_veget <= 0.7 ~ "tresse", # fin
       noeud4 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", # fin
       noeud4 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
-      noeud4 == "Chenal unique" & Sinuosity_meander > 1.3 ~ "meandre passif", # fin
-      noeud4 == "Chenal unique" & Sinuosity_meander <= 1.3 ~ "Non méandre",
+      noeud4 == "Chenal unique" & Sinuosity_meander_2 > 1.3 ~ "meandre passif", # fin
+      noeud4 == "Chenal unique" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
       TRUE ~ noeud4
     ),
     noeud6 = case_when(
-      noeud5 == "Bancs" & Sinuosity_meander > 1.3  ~ "meandre actif", # fin
-      noeud5 == "Bancs" & Sinuosity_meander <= 1.3 ~ "Non méandre",
-      noeud5 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux", # fin
-      noeud5 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne", # fin
+      noeud5 == "Bancs" & Sinuosity_meander_2 > 1.3  ~ "meandre actif", # fin
+      noeud5 == "Bancs" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
+      noeud5 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux", # fin
+      noeud5 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne", # fin
       TRUE ~ noeud5
     ),
     Planform = case_when(
-      noeud6 == "Non méandre" & Sinuosity_meander <= 1.1 ~ "rectiligne bars", # fin
-      noeud6 == "Non méandre" & Sinuosity_meander > 1.1 ~ "sinueux ba", # fin
+      noeud6 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne bars", # fin
+      noeud6 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux ba", # fin
       TRUE ~ noeud6
     ),
     noeud7 = case_when(
@@ -369,7 +327,7 @@ TGH_ID <- TGH_ID %>%
             by = c("axis", "ID_segment")
   )
 
-# st_write(TGH_ID, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(TGH_ID, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 # st_write(TGH_ID, "TGH_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile

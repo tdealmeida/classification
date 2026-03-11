@@ -173,6 +173,7 @@ process_toponyme <- function(top) {
     ) %>%
     arrange(ID_segment) %>%  # pour que lag() ait du sens
     mutate(Delta_AC = lag(mean_AC) - mean_AC,
+           Delta_WC = lag(mean_WC) - mean_WC,
            Lag_AC = mean_AC - lead(mean_AC),
            Delta_AC_relatif = ((lag(mean_AC)-mean_AC) / mean_AC) * 100,  # variation relative vs ligne précédente
            Lag_AC_relatif = ((mean_AC - lead(mean_AC)) / lead(mean_AC)) * 100      # variation relative vs ligne suivante
@@ -189,7 +190,7 @@ TGH <- bind_rows(map(all_results, "res"))
 ALL_SUBDATA <- bind_rows(map(all_results, "subdata"))
 
 # str(TGH)
-st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 # write.csv(TGH, "TGH.csv", row.names = FALSE) # Export des données nettoyées en shapefile
 # st_write(ALL_SUBDATA, "ALL_SUBDATA.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
@@ -216,6 +217,73 @@ Data_points <- ALL_SUBDATA %>%
 
 
 st_write(Data_points, "Rupture.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+Data_points_mid <- ALL_SUBDATA %>%
+  group_by(axis, ID_segment) %>%
+  arrange(desc(measure)) %>%
+  slice(ceiling(n() / 2)) %>%
+  st_as_sf() %>%
+  mutate(
+    geom = st_sfc(map(geom, ~ {
+      coords <- st_coordinates(.x)
+      mid <- ceiling(nrow(coords) / 2)
+      st_point(coords[mid, 1:2])
+    }), crs = st_crs(.))
+  ) %>%
+  st_as_sf() %>%
+  mutate(geom = st_zm(geom, drop = TRUE, what = "ZM")) %>%
+  ungroup() %>%
+  st_transform(2154) %>%
+  select(axis, ID_segment, toponyme)
+
+
+st_write(Data_points_mid, "midpoints.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+
+
+
+
+
+
+df_source <- ALL_SUBDATA %>%
+  st_drop_geometry() %>%
+  filter(!is.na(source_cpt)) %>%
+  distinct(axis, measure, .keep_all = TRUE) %>%
+  mutate(axis = as.numeric(axis)) %>%
+  select(axis, measure, source_cpt)
+
+df2_new <- data %>%
+  mutate(axis = as.numeric(axis)) %>%
+  left_join(df_source, by = c("axis", "measure"))
+
+df2_new <- df2_new %>%
+  arrange(axis, measure) %>%
+  group_by(axis) %>%
+  mutate(segment_id = 1 + cumsum(lag(!is.na(source_cpt), default = FALSE))) %>%
+  ungroup()
+
+df2_group <- df2_new %>%
+  st_transform(2154) %>% # exemple Lambert 
+  mutate(longueur_a = st_length(geom)) %>%
+  st_drop_geometry() %>%
+  summarise(
+    longueur = sum(longueur_a),
+    .by = c(axis, segment_id)
+  ) 
+
+df2_group <- df2_group %>%
+  mutate(longueur_data = as.numeric(longueur)) %>%
+  select(-longueur)
+
+TGH <- TGH %>%
+  left_join(df2_group, by = c("axis", "ID_segment" = "segment_id"))
+
+st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+
 
 
 

@@ -1,22 +1,130 @@
+library(circlize)
 
 
-margins_VB <- st_read("margins_VB.gpkg") %>%
-  st_drop_geometry() %>%
-  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
-  rename(medial_axis = M,
-         axis = AXIS,
-         conf_degree = longueur_margins) %>%
-  select(axis, medial_axis, conf_degree)
-  
-margins_VB_rmc <- st_read("margins_VB_rmc.gpkg") %>%
-  st_drop_geometry() %>%
-  distinct(AXIS, M, .keep_all = TRUE) %>%   # ← supprime les doublons axis + M
-  rename(medial_axis = M,
-         axis = AXIS,
-         conf_degree = longueur_margins) %>%
-  select(axis, medial_axis, conf_degree)
+# resultat_final <- st_read("TGH_RF_total.gpkg") %>%
+#   left_join(
+#     st_drop_geometry(TGH) %>% select(axis, ID_segment, sum_conf_degree),
+#     by = c("axis", "ID_segment")) %>%
+#   mutate(CD = sum_conf_degree/sum_length
+#            )
 
-margins_VB_sum <- bind_rows(margins_VB, margins_VB_rmc)
+resultat_final <- resultat_final %>%
+  mutate(CD = sum_conf_degree / sum_length)
+
+
+resultat_final <- resultat_final %>%
+  mutate(
+    Prediction_en = recode(Prediction,
+                           "rectiligne"        = "Straight",
+                           "rectiligne bars"   = "Straight with bars",
+                           "sinueux"           = "Sinuous",
+                           "sinueux ba"        = "Sinuous with bars",
+                           "meandre actif"     = "Active meandering",
+                           "meandre passif"    = "Passive meandering",
+                           "tresse"            = "Braided",
+                           "tresse vegetal"    = "Vegetated braided",
+                           "divagant"          = "Wandering",
+                           "anastomose"        = "Anastomosing",
+                           "retenue"           = "Reservoir"
+    )
+  )
+
+
+resultat_conf <- resultat_final %>%
+  mutate(
+    idx_conf_inverse = mean_VB / mean_AC, 
+    
+    CD = ifelse(mean_AC < 4 & mean_Slope_talweg > 0.05, 1, CD), # pour eviter mettre en confiné les secteurs pentu sans ac
+    
+    type_plan = Prediction %in% c(
+      "rectiligne", "rectiligne bars",
+      "sinueux", "sinueux ba",
+      "meandre passif", "meandre actif" 
+      # "retenue"
+    ),
+    
+    type_multi = Prediction %in% c(
+      "tresse", "tresse vegetal",
+      "divagant", "anastomose"
+    ),
+    
+    type_reservoir = Prediction == "retenue",
+    
+    conf_simple = case_when(
+      
+      # ---------------- PLAN ----------------
+      type_plan & (
+        CD > 0.90 |
+          (CD > 0.10 & CD <= 0.90 & idx_conf_inverse <= 1.5)
+      ) ~ "confined",
+      
+      type_plan & (
+        (CD > 0.10 & CD <= 0.90 & idx_conf_inverse > 1.5) |
+          (CD <= 0.10 & idx_conf_inverse <= 5)
+      ) ~ "partly confined",
+      
+      type_plan & (
+        CD <= 0.10 & idx_conf_inverse > 5 |
+          (CD = 0 & idx_conf_inverse > 5)
+      ) ~ "unconfined",
+      
+      
+      # ---------------- MULTI ----------------
+      type_multi & (
+        CD > 0.90 |
+          (CD > 0.10 & CD <= 0.90 & idx_conf_inverse <= 1.5)
+      ) ~ "confined",
+      
+      type_multi & (
+        (CD > 0.10 & CD <= 0.90 & idx_conf_inverse > 1.5) |
+          (CD <= 0.10 & idx_conf_inverse <= 2)
+      ) ~ "partly confined",
+      
+      type_multi & (
+        CD <= 0.10 & idx_conf_inverse > 2 |
+          (CD == 0 & idx_conf_inverse > 2)
+      ) ~ "unconfined",
+      
+      type_reservoir ~ "partly confined",
+      
+      TRUE ~ NA_character_
+    ),
+    
+    conf_detaille = case_when(
+      Prediction_en %in% c(
+        "Straight",
+        "Straight with bars",
+        "Sinuous",
+        "Sinuous with bars",
+        "Passive meandering",
+        "Active meandering",
+        "Braided",
+        "Vegetated braided",
+        "Wandering",
+        "Anastomosing"
+      ) ~ paste(Prediction_en, conf_simple),
+      
+      Prediction_en == "Reservoir" ~ "Reservoir",
+      
+      TRUE ~ NA_character_
+    )
+  )
+
+
+
+st_write(resultat_conf, "TGH_RF_total_conf.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+# resultat_final <- st_read("TGH_RF_10.gpkg")
+# resultat_conf <- st_read("TGH_RF_total_conf.gpkg")
+
+
+
+
+
+
+
+
+
 
 
 table(resultat_final$Prediction)

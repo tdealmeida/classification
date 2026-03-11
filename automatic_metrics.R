@@ -31,8 +31,8 @@ calculer_metriques_base <- function(Data) {
       VB    = valley_bottom_width,
       WC    = water_channel_width,
       idx_conf = idx_confinement,
-      Slope_talweg = ifelse(talweg_slope < 0, 0.0001, talweg_slope),
-      Slope_VB = ifelse(floodplain_slope < 0, 0.0001, floodplain_slope),
+      Slope_talweg = ifelse(talweg_slope <= 0, 0.0001, talweg_slope),
+      Slope_VB = ifelse(floodplain_slope <= 0, 0.0001, floodplain_slope),
       elevation = talweg_elevation_min,
       disconnected_pc_corrige = 100 - water_channel_pc - gravel_bars_pc - riparian_corridor_pc - semi_natural_pc - reversible_pc - built_environment_pc,
       active_channel_pc = water_channel_pc + gravel_bars_pc,
@@ -318,9 +318,6 @@ calculer_retenue <- function(retenu) {
 # }
 
 
-
-
-
 # ============================================
 # 3. Calcul des données
 # ============================================
@@ -370,6 +367,13 @@ metrique <- metrique %>%
   left_join(
     df_conf %>% select(axis, measure_medial_axis, conf_degree),
     by = c("axis", "measure_medial_axis")
+  ) %>%
+  mutate(
+    conf_degree = ifelse(
+      is.na(conf_degree),
+      0,
+      pmin(conf_degree, length)
+    )
   )
 
 metrique <- metrique %>%
@@ -439,7 +443,7 @@ metrique <- metrique %>%
 metrique <- metrique %>%
   mutate(
     idx_water = case_when(
-      AC == 0 & WC == 0 ~ -1,    # pas de données → ignorer pour les moyennes
+      AC == 0 & WC == 0 ~ 1,    # pas de données → ignorer pour les moyennes
       WC == 0 & AC > 0 ~ 0,      # vrai 0
       TRUE ~ WC / AC             # ratio normal
     )

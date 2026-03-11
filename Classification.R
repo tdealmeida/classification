@@ -146,6 +146,9 @@ library(randomForest)
 library(rpart)
 library(rpart.plot)
 
+TGH_ID <- st_read("TGH_ID_fr.gpkg")
+
+
 # ----------------------------
 # 1️⃣ Lecture + nettoyage
 # ----------------------------
@@ -161,7 +164,17 @@ label <- st_read("label_fr.gpkg") %>%
 test <- TGH_ID %>%
   left_join(label %>% st_drop_geometry() %>% select(axis,ID_segment, label),
             by = c("axis", "ID_segment")
+  ) %>%
+  # arrange(axis, desc(ID_segment)) %>%
+  # group_by(axis) %>%
+  # mutate(Delta_WC = lead(mean_WC) - mean_WC) %>%
+  ungroup() %>%
+  mutate(step_AC_na = ifelse(is.na(Delta_AC), lag(Delta_AC), Delta_AC),
+         # step_WC_na = ifelse(is.na(Delta_WC), lead(Delta_WC), Delta_WC)
   )
+
+
+
 table(test$label)
 # Colonnes inutiles
 colonnes_a_exclure <- c(
@@ -178,11 +191,15 @@ colonnes_a_exclure <- c(
   "mean_riparian_corridor_pc", "mean_semi_natural_pc", "mean_reversible_pc",
   "mean_disconnected_pc_corrige", "mean_built_environment_pc", "mean_natural_open_pc",
   "mean_gravel_bars_pc", "gid_region", "strahler", 
-  "nb_na", "mean_Slope_VB" , "na_pct", "Planform", "Process", 
-  "mean_elevation",
-  "length_original", "Sinuosity_original", 
+  "nb_na", "mean_Slope_VB" , "na_pct",
+  # "Planform", "Process", 
+  "mean_elevation", "Sinuosity_meander_1", "longueur_data",
+  "sum_conf_degree",
+  "retenue",
+  # "length_original", "Sinuosity_original", 
   "mean_Slope_talweg",
-  "mean_AC", "mean_WC"
+  "mean_AC",
+  "mean_WC"
   )
 
 #e ajout de nouvelle colonne depuis TGH
@@ -317,6 +334,7 @@ confusion <- confusionMatrix(pred_test, testset$label)
 print(confusion)
 # confusion$byClass
 mean(confusion$byClass[, "Sensitivity"], na.rm = TRUE)
+
 mean(confusion$byClass[, "Pos Pred Value"], na.rm = TRUE)
 mean(confusion$byClass[, "F1"], na.rm = TRUE)
 mean(confusion$byClass[, "Specificity"], na.rm = TRUE)
@@ -398,18 +416,39 @@ ggplot(resultat_final, aes(x = Probabilite, fill = Prediction)) +
 
 
 
-st_write(resultat_final, "TGH_RF_total.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(resultat_final, "TGH_RF_10.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+# write.csv(test_clean, "dataset_rf.csv", row.names = FALSE)
 
 
 
+rhonne <- resultat_final %>%
+  filter(axis == 2000804457,
+         ID_segment == 4) 
+
+ana <- resultat_final %>%
+  filter(Prediction == "anastomose")
+
+val_rhone <- rhonne$mean_AC
 
 
+ggplot(ana, aes(y = mean_AC)) +
+  geom_boxplot(fill = "lightblue") +
+  geom_point(aes(x = 1, y = val_rhone),
+             color = "red",
+             size = 4) +
+  labs(title = "Comparaison Rhone vs Anastomose",
+       x = "",
+       y = "Score") +
+  theme_minimal()
 
 
+ana <- resultat_final %>%
+  filter(Prediction == "retenue")
 
-
-
-
+ggplot(ana, aes(x = retenue)) +
+  geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+  theme_minimal()
 
 
 # ============================================================
