@@ -16,9 +16,10 @@ resultat_final <- resultat_final %>%
   mutate(
     Prediction_en = recode(Prediction,
                            "rectiligne"        = "Straight",
-                           "rectiligne bars"   = "Straight with bars",
+                           # "rectiligne bars"   = "Straight with bars",
                            "sinueux"           = "Sinuous",
-                           "sinueux ba"        = "Sinuous with bars",
+                           "alternate bars"    = "Alternate bars",
+                           # "sinueux ba"        = "Sinuous with bars",
                            "meandre actif"     = "Active meandering",
                            "meandre passif"    = "Passive meandering",
                            "tresse"            = "Braided",
@@ -38,7 +39,7 @@ resultat_conf <- resultat_final %>%
     
     type_plan = Prediction %in% c(
       "rectiligne", "rectiligne bars",
-      "sinueux", "sinueux ba",
+      "sinueux", "sinueux ba", "alternate bars",
       "meandre passif", "meandre actif" 
       # "retenue"
     ),
@@ -96,6 +97,7 @@ resultat_conf <- resultat_final %>%
         "Straight with bars",
         "Sinuous",
         "Sinuous with bars",
+        "Alternate bars",
         "Passive meandering",
         "Active meandering",
         "Braided",

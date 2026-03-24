@@ -149,6 +149,38 @@ library(rpart.plot)
 TGH_ID <- st_read("TGH_ID_fr.gpkg")
 
 
+
+TGH_ID <- TGH_ID %>%
+  left_join(TGH %>% st_drop_geometry() %>% select(axis,ID_segment, multi_chenaux_index),
+            by = c("axis", "ID_segment"))%>%
+  mutate(multi_chenaux_index = ifelse(multi_chenaux_index == 0, 1, multi_chenaux_index))
+
+Segment_homogene <- TGH_ID %>%
+  select(-source,-mean_meander_belt,-mean_angle_deg,-mean_water_channel_pc,
+         -mean_gravel_bars_pc, -mean_natural_open_pc, -mean_forest_pc,
+         -mean_forest_pc , -mean_grassland_pc, -mean_crops_pc, -mean_diffuse_urban_pc,
+         -mean_dense_urban_pc, -mean_infrastructures_pc, -mean_active_channel_pc,
+         -mean_riparian_corridor_pc, -mean_semi_natural_pc, -mean_reversible_pc,
+         -mean_built_environment_pc, -nb_na, -na_pct, -multi_chenal, -retenue,
+         -sum_length, -Delta_AC, -Delta_AC_relatif, -length_meander, -Sinuosity_meander_1,
+         -mean_disconnected_pc_corrige, -Lag_AC, -Lag_AC_relatif) %>%
+  rename(water_index = mean_idx_water,
+         sinuosity_index = Sinuosity_meander_2,
+         ACW_star = mean_ACW_star,
+         AC = mean_AC,
+         WC = mean_WC,
+         conf_index = mean_idx_conf,
+         VB = mean_VB,
+         slope_talweg = mean_Slope_talweg, 
+         slope_VB = mean_Slope_VB,
+         multi_index = multi_chenaux_index,
+         length = longueur_data,
+         elevation = mean_elevation,
+         iles_veget = iles_veget,
+         conf_degree = sum_conf_degree
+  )
+# st_write(Segment_homogene, "Segment_homogene.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
 # ----------------------------
 # 1️⃣ Lecture + nettoyage
 # ----------------------------
@@ -156,9 +188,13 @@ TGH_ID <- st_read("TGH_ID_fr.gpkg")
 label <- st_read("label_fr.gpkg") %>%
   # st_drop_geometry() %>%
   select(-label) %>%
-  rename(label = label_2) %>%
+  rename(label = label_3) %>%
   filter(!label == "diffus") %>%
-  filter(!label == "a voir")
+  filter(!label == "a voir") %>%
+  # filter(!label == "anastomose") %>%
+  filter(!label == "rectiligne bars") %>%
+  filter(!label == "sinueux ba") %>%
+  filter(!label == "tresse intermittent")
 
 
 test <- TGH_ID %>%
@@ -170,6 +206,11 @@ test <- TGH_ID %>%
   # mutate(Delta_WC = lead(mean_WC) - mean_WC) %>%
   ungroup() %>%
   mutate(step_AC_na = ifelse(is.na(Delta_AC), lag(Delta_AC), Delta_AC),
+         mean_idx_water = case_when(
+           mean_AC == 0 & mean_WC == 0 ~ 1,    # pas de données → ignorer pour les moyennes
+           mean_WC == 0 & mean_AC > 0 ~ 0,      # vrai 0
+           TRUE ~ mean_WC / mean_AC             # ratio normal
+         )
          # step_WC_na = ifelse(is.na(Delta_WC), lead(Delta_WC), Delta_WC)
   )
 
@@ -195,12 +236,14 @@ colonnes_a_exclure <- c(
   # "Planform", "Process", 
   "mean_elevation", "Sinuosity_meander_1", "longueur_data",
   "sum_conf_degree",
-  "retenue",
+  "retenue", "multi_chenal", 
   # "length_original", "Sinuosity_original", 
   "mean_Slope_talweg",
-  "mean_AC",
-  "mean_WC"
+  "mean_AC"
+  # "mean_WC"
   )
+
+
 
 #e ajout de nouvelle colonne depuis TGH
 test <- test %>%
@@ -298,7 +341,8 @@ test <- test %>%
 test_clean <- test %>% 
   st_drop_geometry() %>%
   drop_na(label) %>%
-  select(-all_of(colonnes_a_exclure))
+  select(-all_of(colonnes_a_exclure)) %>%
+  drop_na()    # <-- enlève les NA dans toutes les colonnes
 
 test_clean$label <- factor(test_clean$label)
 
@@ -324,6 +368,7 @@ modele_foret <- randomForest(
   ntree = 500,
   mtry = floor(sqrt(ncol(train) - 1))
 )
+
 
 # ----------------------------
 # 4️⃣ Évaluation
@@ -374,7 +419,7 @@ ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
 print(importance(modele_foret))
 varImpPlot(modele_foret, type = 1)
 
-
+importance(modele_foret, type = 1)
 
 # ----------------------------
 # 6️⃣ Application & Probabilités
@@ -416,39 +461,301 @@ ggplot(resultat_final, aes(x = Probabilite, fill = Prediction)) +
 
 
 
-st_write(resultat_final, "TGH_RF_10.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(resultat_final, "TGH_RF_v2.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 # write.csv(test_clean, "dataset_rf.csv", row.names = FALSE)
 
 
 
-rhonne <- resultat_final %>%
-  filter(axis == 2000804457,
-         ID_segment == 4) 
-
-ana <- resultat_final %>%
-  filter(Prediction == "anastomose")
-
-val_rhone <- rhonne$mean_AC
 
 
-ggplot(ana, aes(y = mean_AC)) +
-  geom_boxplot(fill = "lightblue") +
-  geom_point(aes(x = 1, y = val_rhone),
-             color = "red",
-             size = 4) +
-  labs(title = "Comparaison Rhone vs Anastomose",
-       x = "",
-       y = "Score") +
-  theme_minimal()
 
 
-ana <- resultat_final %>%
-  filter(Prediction == "retenue")
+# 1. Variables numériques
+data_numeric <- test_clean %>%
+  select(-label) %>%
+  select(where(is.numeric))
 
-ggplot(ana, aes(x = retenue)) +
-  geom_histogram(bins = 30, fill = "lightblue", color = "white") +
-  theme_minimal()
+# 2. Corrélation Spearman
+cor_matrix <- cor(data_numeric, method = "spearman", use = "complete.obs")
+
+corrplot(cor_matrix,
+         method = "color",
+         type = "upper",
+         order = "hclust",
+         tl.cex = 0.7,
+         addCoef.col = "black")
+
+# 3. Distance
+dist_matrix <- as.dist(1 - abs(cor_matrix))
+
+# 4. Clustering
+hc <- hclust(dist_matrix, method = "ward.D2")
+
+# 5. Groupes avec seuil 0.2
+groups <- cutree(hc, h = 0.2)
+
+# 6. Voir les groupes de variables corrélées
+clusters <- split(names(groups), groups)
+
+print(clusters)
+
+
+plot(hc, main = "Dendrogramme des variables")
+abline(h = 0.20, col = "red", lwd = 2, lty = 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ============================
+# LIBRAIRIES
+# ============================
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(ggpubr)
+# library(scales)
+
+# ============================
+# 1️⃣ PREPARATION DONNEES
+# ============================
+test_clean <- test %>% 
+  st_drop_geometry() %>%
+  drop_na(label) %>%
+  select(-all_of(colonnes_a_exclure)) %>%
+  drop_na()
+
+test_clean$label <- factor(test_clean$label)
+
+# Split
+set.seed(123)
+index <- createDataPartition(test_clean$label, p = 0.8, list = FALSE)
+
+train <- test_clean[index, ]
+testset <- test_clean[-index, ]
+
+# ============================
+# 2️⃣ RANDOM FOREST FINAL
+# ============================
+modele_foret <- randomForest(
+  label ~ .,
+  data = train,
+  importance = TRUE,
+  ntree = 500,
+  mtry = floor(sqrt(ncol(train) - 1))
+)
+
+# ============================
+# 3️⃣ MATRICE DE CONFUSION
+# ============================
+pred_test <- predict(modele_foret, newdata = testset)
+
+confusion <- confusionMatrix(pred_test, testset$label)
+
+# Dictionnaire de renommage
+labels_map <- c(
+  "rectiligne"        = "Straight",
+  "rectiligne bars"   = "Straight with bars",
+  "sinueux"           = "Sinuous",
+  "sinueux ba"        = "Sinuous with bars",
+  "meandre actif"     = "Active meandering",
+  "meandre passif"    = "Passive meandering",
+  "tresse"            = "Braided",
+  "tresse vegetal"    = "Vegetated braided",
+  "divagant"          = "Wandering",
+  "anastomose"        = "Anastomosing",
+  "retenue"           = "Reservoir"
+)
+
+
+conf_df <- as.data.frame(confusion$table)
+colnames(conf_df) <- c("Reference", "Prediction", "Freq")
+
+conf_df <- conf_df %>%
+  mutate(
+    Reference = recode(Reference, !!!labels_map),
+    Prediction = recode(Prediction, !!!labels_map)
+  )
+
+conf_df <- conf_df %>%
+  group_by(Reference) %>%
+  mutate(Percent = Freq / sum(Freq))
+
+
+
+# ============================
+# CONFUSION MATRIX PLOT
+# ============================
+conf_df <- conf_df %>%
+  mutate(text_color = ifelse(Percent > 0.5, "white", "black"))
+
+plot_conf <- ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
+  
+  geom_tile(color = "white", linewidth = 0.4) +
+  
+  geom_text(aes(label = Freq, color = text_color),
+            size = 4, fontface = "bold") +
+  
+  scale_color_identity() +
+  
+  scale_fill_gradient(
+    low = "grey95",
+    high = "grey20",
+    guide = "none"
+  ) +
+  
+  labs(
+    x = "Observed class",
+    y = "Predicted class"
+  ) +
+  
+  coord_equal() +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.margin = ggplot2::margin(10, 10, 10, 10)
+  )
+
+plot_conf
+
+# ============================
+# 4️⃣ IMPORTANCE AVEC INCERTITUDE (BOOTSTRAP)
+# ============================
+set.seed(123)
+n_iter <- 30
+
+all_importance <- list()
+
+for(i in 1:n_iter){
+  
+  index <- createDataPartition(test_clean$label, p = 0.8, list = FALSE)
+  train_i <- test_clean[index, ]
+  
+  model_i <- randomForest(
+    label ~ .,
+    data = train_i,
+    importance = TRUE,
+    ntree = 300
+  )
+  
+  imp_i <- importance(model_i, type = 2)
+  
+  imp_df_i <- data.frame(
+    Variable = rownames(imp_i),
+    Importance = imp_i[,1],
+    Iteration = i
+  )
+  
+  all_importance[[i]] <- imp_df_i
+}
+
+imp_all <- bind_rows(all_importance)
+
+# Moyenne + SD
+imp_summary <- imp_all %>%
+  group_by(Variable) %>%
+  summarise(
+    Mean = mean(Importance),
+    SD = sd(Importance),
+    .groups = "drop"
+  ) %>%
+  arrange(Mean)
+
+var_map <- c(
+  "Sinuosity_meander_2" = "Sinuosity index",
+  "mean_idx_water" = "Water index",
+  "mean_ACW_star" = "ACW*",
+  "mean_AC" = "AC",
+  "mean_WC" = "WC",
+  "multi_chenaux_index" = "Multi-channel index",
+  "iles_veget" = "Vegetated islands occurence",
+  "step_AC_na" = "AC delta"
+)
+
+imp_summary <- imp_summary %>%
+  mutate(
+    Variable = recode(Variable, !!!var_map)
+  )
+
+# ============================
+# VARIABLE IMPORTANCE PLOT
+# ============================
+
+plot_imp <- ggplot(imp_summary, aes(x = Mean, y = reorder(Variable, Mean))) +
+  
+  geom_point(size = 2.5, color = "black") +
+  
+  geom_errorbarh(
+    aes(xmin = Mean - SD, xmax = Mean + SD),
+    height = 0.15,
+    color = "black",
+    linewidth = 0.5
+  ) +
+  
+  labs(
+    x = "Mean Decrease in Gini",
+    y = NULL
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    axis.text.y = element_text(face = "bold"),  # ✅ ICI
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.margin = ggplot2::margin(10, 10, 10, 10)
+  )
+
+plot_imp
+
+
+
+
+
+
+
+
+
+
+# 
+# rhonne <- resultat_final %>%
+#   filter(axis == 2000804457,
+#          ID_segment == 4) 
+# 
+# ana <- resultat_final %>%
+#   filter(Prediction == "anastomose")
+# 
+# val_rhone <- rhonne$mean_AC
+# 
+# 
+# ggplot(ana, aes(y = mean_AC)) +
+#   geom_boxplot(fill = "lightblue") +
+#   geom_point(aes(x = 1, y = val_rhone),
+#              color = "red",
+#              size = 4) +
+#   labs(title = "Comparaison Rhone vs Anastomose",
+#        x = "",
+#        y = "Score") +
+#   theme_minimal()
+# 
+# 
+# ana <- resultat_final %>%
+#   filter(Prediction == "retenue")
+# 
+# ggplot(ana, aes(x = retenue)) +
+#   geom_histogram(bins = 30, fill = "lightblue", color = "white") +
+#   theme_minimal()
 
 
 # ============================================================

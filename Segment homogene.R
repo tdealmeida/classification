@@ -160,6 +160,7 @@ process_toponyme <- function(top) {
                disconnected_pc_corrige, built_environment_pc
                ), 
              ~ mean(.x, na.rm = TRUE), .names = "mean_{.col}"),
+      multi_chenaux_index = round(mean(multi_index, na.rm = TRUE)),
       nb_na = sum(is.na(WC)),
       na_pct = nb_na / nb_DGO * 100,
       multi_chenal = value_pct(multi_chenaux, val = 2),   #

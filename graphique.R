@@ -4,100 +4,162 @@ library(ggtext)
 library(ggh4x)
 
 
-palette_lits <- c(
-  "Straight" = "#9ecae1",
-  "Straight with bars" = "#6baed6",
-  # "No channel" = "#202020",
-  # "intermittent" = "#a7a7a7",
-  "Sinuous" = "#4292c6",
-  "Sinuous with bars" = "#2171b5",
-  "Passive meandering" = "#084594",
-  "Active meandering" = "#08306b",
-  "Braided" = "#e69f00",
-  # "braided intermittent" = "#eae9ab",
-  "Vegetated braided" = "#ffd500",
-  "Wandering" = "#b410d5",
-  "Reservoir" = "#a7a7a7",
-  "Anastomosing" = "#9acd32"
-  # "Diffuse" = "#fcb4b1"
-)
+# palette_lits <- c(
+#   "Straight" = "#a6cee3",
+#   # "Straight with bars" = "#6baed6",
+#   # "No channel" = "#202020",
+#   # "intermittent" = "#a7a7a7",
+#   "Sinuous" = "#1f78b4",
+#   "Alternate bars" = "#5aa6c8",
+#   # "Sinuous with bars" = "#2171b5",
+#   "Passive meandering" = "#08519c",
+#   "Active meandering" = "#08306b",
+#   "Braided" = "#ffd500",
+#   # "braided intermittent" = "#eae9ab",
+#   "Vegetated braided" = "#e69f00",
+#   "Wandering" = "#b410d5",
+#   "Reservoir" = "#a7a7a7",
+#   "Anastomosing" = "#9acd32"
+#   # "Diffuse" = "#fcb4b1"
+# )
+# 
+# 
+# palette_conf <- c(
+#   # Straight
+#   "Straight confined"        = "#6baed6",
+#   "Straight partly confined" = "#a6cee3",
+#   "Straight unconfined"      = "#deebf7",
+#   
+#   # Sinuous
+#   "Sinuous confined"        = "#08519c",
+#   "Sinuous partly confined" = "#1f78b4",
+#   "Sinuous unconfined"      = "#6baed6",
+#   
+#   # Alternate bars (NEW)
+#   "Alternate bars confined"        = "#3c8dbc",
+#   "Alternate bars partly confined" = "#5aa6c8",
+#   "Alternate bars unconfined"      = "#9ecae1",
+#   
+#   # Passive meandering
+#   "Passive meandering confined"        = "#084594",
+#   "Passive meandering partly confined" = "#2171b5",
+#   "Passive meandering unconfined"      = "#6baed6",
+#   
+#   # Active meandering
+#   "Active meandering confined"        = "#08306b",
+#   "Active meandering partly confined" = "#08519c",
+#   "Active meandering unconfined"      = "#6baed6",
+#   
+#   # Braided
+#   "Braided confined"        = "#b97700",
+#   "Braided partly confined" = "#e69f00",
+#   "Braided unconfined"      = "#f5c04a",
+#   
+#   # Vegetated braided
+#   "Vegetated braided confined"        = "#c2a500",
+#   "Vegetated braided partly confined" = "#ffd92f",
+#   "Vegetated braided unconfined"      = "#fff176",
+#   
+#   # Wandering
+#   "Wandering confined"        = "#7a0ca3",
+#   "Wandering partly confined" = "#b012d4",
+#   "Wandering unconfined"      = "#d580eb",
+#   
+#   # Anastomosing
+#   "Anastomosing confined"        = "#4d7f1a",
+#   "Anastomosing partly confined" = "#66a61e",
+#   "Anastomosing unconfined"      = "#a6d96a",
+#   
+#   # Reservoir
+#   "Reservoir" = "#9e9e9e"
+# )
 
+palette_lits <- c(
+  "Straight" = "#6baed6",          # très clair
+  "Sinuous" = "#2171b5",           # bleu soutenu
+  "Passive meandering" = "#084594", # 🔵 bleu foncé réintroduit
+  "Alternate bars" = "#c6dbef",    # intermédiaire
+  "Active meandering" = "#6a51a3",  # violet (évite confusion)
+  "Braided" = "#e69f00",
+  "Vegetated braided" = "#ffd92f",
+  "Wandering" = "#b012d4",
+  "Anastomosing" = "#66a61e",
+  "Reservoir" = "#9e9e9e"
+)
 
 palette_conf <- c(
   # Straight
-  "Straight confined"        = "#6f9fb8",
-  "Straight partly confined" = "#9ecae1",
-  "Straight unconfined"      = "#cfe5f2",
-  
-  # Straight with bars
-  "Straight with bars confined"        = "#4fa1c7",
-  "Straight with bars partly confined" = "#6baed6",
-  "Straight with bars unconfined"      = "#a9d0eb",
+  "Straight confined"        = "#4a98c9",
+  "Straight partly confined" = "#6baed6",
+  "Straight unconfined"      = "#cfe5f3",
   
   # Sinuous
-  "Sinuous confined"        = "#2f78a8",
-  "Sinuous partly confined" = "#4292c6",
-  "Sinuous unconfined"      = "#7fb8de",
+  "Sinuous confined"        = "#185a94",
+  "Sinuous partly confined" = "#2171b5",
+  "Sinuous unconfined"      = "#7fb6e6",
   
-  # Sinuous with bars
-  "Sinuous with bars confined"        = "#185a94",
-  "Sinuous with bars partly confined" = "#2171b5",
-  "Sinuous with bars unconfined"      = "#5a9ad4",
-  
-  # Passive meandering
-  "Passive meandering confined"        = "#06386f",
+  # Passive meandering (bleu foncé → très clair)
+  "Passive meandering confined"        = "#062e5c",
   "Passive meandering partly confined" = "#084594",
-  "Passive meandering unconfined"      = "#3d6fb5",
+  "Passive meandering unconfined"      = "#6f9fd8",
   
-  # Active meandering
-  "Active meandering confined"        = "#062a57",
-  "Active meandering partly confined" = "#08306b",
-  "Active meandering unconfined"      = "#3c5c94",
+  # Alternate bars
+  "Alternate bars confined"        = "#9fbcd1",
+  "Alternate bars partly confined" = "#c6dbef",
+  "Alternate bars unconfined"      = "#edf4fb",
   
-  # Braided
-  "Braided confined"        = "#c78700",
+  # Active meandering (violet)
+  "Active meandering confined"        = "#4a3580",
+  "Active meandering partly confined" = "#6a51a3",
+  "Active meandering unconfined"      = "#b3a2d6",
+  
+  # Braided (orange)
+  "Braided confined"        = "#b97700",
   "Braided partly confined" = "#e69f00",
-  "Braided unconfined"      = "#f3c64d",
+  "Braided unconfined"      = "#f5c04a",
   
-  # Vegetated braided
-  "Vegetated braided confined"        = "#c6a700",
-  "Vegetated braided partly confined" = "#ffd500",
-  "Vegetated braided unconfined"      = "#ffe766",
+  # Vegetated braided (jaune)
+  "Vegetated braided confined"        = "#c2a500",
+  "Vegetated braided partly confined" = "#ffd92f",
+  "Vegetated braided unconfined"      = "#fff176",
   
-  # Wandering
-  "Wandering confined"        = "#8d0aa6",
-  "Wandering partly confined" = "#b410d5",
-  "Wandering unconfined"      = "#d46beb",
+  # Wandering (violet rose)
+  "Wandering confined"        = "#7a0ca3",
+  "Wandering partly confined" = "#b012d4",
+  "Wandering unconfined"      = "#d580eb",
   
-  # Anastomosing
-  "Anastomosing confined"        = "#6c9c23",
-  "Anastomosing partly confined" = "#9acd32",
-  "Anastomosing unconfined"      = "#c8e78a",
+  # Anastomosing (vert)
+  "Anastomosing confined"        = "#4d7f1a",
+  "Anastomosing partly confined" = "#66a61e",
+  "Anastomosing unconfined"      = "#a6d96a",
   
   # Reservoir
-  "Reservoir" = "#a7a7a7"
+  "Reservoir" = "#9e9e9e"
 )
-
 ordre_conf <- c(
   "Straight unconfined",
   "Straight partly confined",
   "Straight confined",
   
-  "Straight with bars unconfined",
-  "Straight with bars partly confined",
-  "Straight with bars confined",
+  # "Straight with bars unconfined",
+  # "Straight with bars partly confined",
+  # "Straight with bars confined",
   
   "Sinuous unconfined",
   "Sinuous partly confined",
   "Sinuous confined",
   
-  "Sinuous with bars unconfined",
-  "Sinuous with bars partly confined",
-  "Sinuous with bars confined",
+  # "Sinuous with bars unconfined",
+  # "Sinuous with bars partly confined",
+  # "Sinuous with bars confined",
   
   "Passive meandering unconfined",
   "Passive meandering partly confined",
   "Passive meandering confined",
+  
+  "Alternate bars unconfined",
+  "Alternate bars partly confined",
+  "Alternate bars confined",
   
   "Active meandering unconfined",
   "Active meandering partly confined",
@@ -172,8 +234,9 @@ ordre_lits <- c(
   "Straight",
   "Sinuous",
   "Passive meandering",
-  "Straight with bars",
-  "Sinuous with bars",
+  # "Straight with bars",
+  # "Sinuous with bars",
+  "Alternate bars",
   "Active meandering",
   "Wandering",
   "Braided",
@@ -253,7 +316,7 @@ resultat_final %>%
 # histogramme de km par classe RMC
 # ============================================
 resultat_final %>%
-  filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
+  # filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
   filter(!is.na(Prediction_en)) %>%   # enlève les NA
   mutate(Prediction_en = factor(Prediction_en, levels = ordre_lits),
          Prediction_en = fct_rev(Prediction_en)) %>%
@@ -269,8 +332,8 @@ resultat_final %>%
   ) +
   theme(
     legend.position = "none",
-    panel.background = element_rect(fill = "transparent", colour = NA),
-    plot.background = element_rect(fill = "transparent", colour = NA),
+    # panel.background = element_rect(fill = "transparent", colour = NA),
+    # plot.background = element_rect(fill = "transparent", colour = NA),
     panel.grid = element_blank(),
     axis.text = element_text(size = 14, face = "bold"),
     axis.title = element_text(size = 16, face = "bold")
@@ -337,9 +400,9 @@ group_breaks <- df_plot %>%
 
 # ============================================
 ggplot(df_plot, aes(x = x, y = long, fill = conf_detaille)) +
-  
+
   geom_col(width = 0.7) +
-  
+
   geom_text(
     data = group_labels,
     aes(x = x, y = -max(df_plot$long)*0.1, label = Prediction_en),
@@ -348,7 +411,7 @@ ggplot(df_plot, aes(x = x, y = long, fill = conf_detaille)) +
     size = 3,
     inherit.aes = FALSE
   ) +
-  
+
   geom_segment(
     data = group_breaks,
     aes(x = x+0.5, xend = x+0.5,
@@ -357,22 +420,22 @@ ggplot(df_plot, aes(x = x, y = long, fill = conf_detaille)) +
     inherit.aes = FALSE,
     linewidth = 0.4
   ) +
-  
+
   scale_fill_manual(values = palette_conf) +
-  
+
   scale_x_continuous(
     breaks = df_plot$x,
     labels = df_plot$x_label
   ) +
-  
+
   coord_cartesian(clip = "off") +
-  
+
   theme_minimal() +
   labs(
     x = NULL,
     y = "river length (km)"
   ) +
-  
+
   theme(
     legend.position = "none",
     panel.background = element_rect(fill = "transparent", colour = NA),
@@ -382,6 +445,77 @@ ggplot(df_plot, aes(x = x, y = long, fill = conf_detaille)) +
     axis.line.x = element_blank(),
     axis.ticks.x = element_blank()
     # plot.margin = ggplot2::margin(5.5, 60, 5.5, 5.5)
+  )
+
+
+
+# ============================================
+# Graphique combiné : Longueur par Prediction_en 
+# avec segmentation par Confinement (Stacked Bar)
+# ============================================
+library(ggplot2)
+library(ggbreak)
+library(dplyr)
+library(forcats)
+
+
+# 1. Transformation des données (on garde la logique de compression)
+df_plot <- resultat_conf %>%
+  filter(!is.na(Prediction_en), !is.na(conf_detaille)) %>%
+  mutate(
+    Prediction_en = factor(Prediction_en, levels = ordre_lits),
+    # On enlève fct_rev car en vertical l'ordre des levels suit l'axe X de gauche à droite
+    conf_detaille = factor(conf_detaille, levels = ordre_conf)
+  ) %>%
+  group_by(Prediction_en, conf_detaille) %>%
+  summarize(long = sum(sum_length) / 1000, .groups = "drop")
+
+# Paramètres de compression
+break_start <- 15000
+break_end <- 40000
+compression_factor <- 0.1
+
+trans_break <- function(x) {
+  ifelse(x <= break_start, x,
+         ifelse(x <= break_end, 
+                break_start + (x - break_start) * compression_factor,
+                break_start + (break_end - break_start) * compression_factor + (x - break_end)))
+}
+
+df_plot <- df_plot %>% mutate(long_trans = trans_break(long))
+
+# ============================================
+# Création du graphique VERTICAL
+# ============================================
+ggplot(df_plot, aes(x = Prediction_en, y = long_trans, fill = conf_detaille)) +
+  geom_col(width = 0.7, color = "white", linewidth = 0.1) +
+  scale_fill_manual(values = palette_conf) +
+  
+  # Configuration de l'axe Y (anciennement X)
+  scale_y_continuous(
+    breaks = trans_break(c(0, 5000, 10000, 15000, 30000)),
+    labels = c("0", "5 000", "10 000", "15 000", "30 000"),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  
+  # Ajout de l'encoche // sur l'axe Y
+  # x = 0.4 place l'encoche à gauche de la première barre
+  annotate("text", x = 0.4, 
+           y = trans_break(break_start + (break_end - break_start) / 2), 
+           label = "//", size = 5, fontface = "bold", angle = 0) +
+  
+  theme_minimal() +
+  labs(y = "river length (km)", x = NULL) +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    # On inverse les grilles majeures
+    panel.grid.major.y = element_line(color = "grey92"),
+    panel.grid.major.x = element_blank(),
+    axis.line.y = element_line(color = "black"),
+    axis.text.y = element_text(size = 10),
+    # Rotation des noms de routes si elles sont trop longues
+    axis.text.x = element_text(size = 10, color = "black", angle = -15, hjust = 0.5)
   )
 
 
@@ -410,42 +544,47 @@ resultat_final %>%
 # comparaison classe par region fr 
 # ============================================
 df_facet <- resultat_final %>%
-  filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
-  mutate(Prediction_en = factor(Prediction_en, levels = ordre_lits)) %>%
   mutate(
-    gid_region_name = case_when(
-      gid_region == 31 ~ "la Saône",
-      gid_region == 16 ~ "la Durance",
-      gid_region == 11 ~ "l'Isère",
-      gid_region == 33 ~ "le Rhône hors autre bassin",
-      gid_region == 26 ~ "Côtiers méditerranéens"
+    gid_bassin = case_when(
+      gid_region %in% c(31, 16, 11, 33, 26) ~ "RMC",
+      gid_region %in% c(23, 30, 15, 27, 29) ~ "Loire - Bretagne",
+      gid_region %in% c(22, 25, 20, 18) ~ "Seine - Normandie",
+      gid_region %in% c(24, 21, 10, 14) ~ "Adour - Garonne",
+      gid_region %in% c(28, 32) ~ "Rhin - Meuse",
+      gid_region %in% c(19, 12) ~ "Artois - Picardie",
+      TRUE ~ NA_character_
     )
   ) %>%
-  group_by(gid_region_name, Prediction_en) %>%
-  summarise(km = sum(sum_length, na.rm = TRUE) / 1000) %>%
-  ungroup()
+  mutate(Prediction_en = factor(Prediction_en, levels = ordre_lits)) %>%
+  group_by(gid_bassin, Prediction_en) %>%
+  summarise(km = sum(sum_length, na.rm = TRUE) / 1000, .groups = "drop")
 
 df_total <- df_facet %>%
   group_by(Prediction_en) %>%
   summarise(km = sum(km)) %>%
-  mutate(gid_region_name = "Total")
+  mutate(gid_bassin = "Total")
 
 df_plot <- bind_rows(df_facet, df_total)
+
+
 
 ggplot(df_plot, aes(x = "Total", y = km, fill = Prediction_en)) +
   geom_col(position = "fill") +
   scale_fill_manual(values = palette_lits) +
   scale_y_continuous(labels = scales::percent) +
-  facet_wrap(~ gid_region_name, nrow = 1) +
+  facet_wrap(~ gid_bassin, nrow = 1, strip.position = "bottom") +
   theme_minimal() +
+  
   labs(
     y = "% of total river length (km)",
     x = NULL,
     fill = "Planform"
   ) +
+  
   theme(
     axis.text.x  = element_blank(),
     axis.ticks.x = element_blank()
+    # strip.text = element_text(angle = 0, hjust = 1)
   )
 
 
@@ -479,7 +618,7 @@ ggplot(df_plot, aes(x = "Total", y = km, fill = Prediction_en)) +
   geom_col(position = "fill") +
   scale_fill_manual(values = palette_lits) +
   scale_y_continuous(labels = scales::percent) +
-  facet_wrap(~ gid_region_name, nrow = 1) +
+  facet_wrap(~ gid_region_name, nrow = 1, strip.position = "bottom") +
   theme_minimal() +
   labs(
     y = "% of total river length (km)",
@@ -513,10 +652,11 @@ df_box <- resultat_conf %>%
          measure = measure / 1000
          ) %>%
   select(Prediction_en, mean_Slope_talweg, mean_elevation,
-         drainage_area, mean_ACW_star, mean_idx_water, measure, sum_length) %>%
+         drainage_area, mean_ACW_star, mean_idx_water, measure, 
+         , multi_chenaux_index, sum_length) %>%
   pivot_longer(
     cols = c(mean_Slope_talweg, mean_elevation, measure, sum_length,
-             drainage_area, mean_ACW_star, mean_idx_water),
+             drainage_area, mean_ACW_star, mean_idx_water, multi_chenaux_index),
     names_to = "variable",
     values_to = "value"
   ) %>%
@@ -529,7 +669,8 @@ df_box <- resultat_conf %>%
       drainage_area = "Drainage area (km²)",
       mean_ACW_star = "Normalized active channel width (m)",
       mean_idx_water = "Water index",
-      sum_length = "Segment length (m)"
+      sum_length = "Segment length (m)",
+      multi_chenaux_index = "Multi-channel index"
     ),
     Prediction_en = factor(Prediction_en, levels = ordre_lits)
   )
@@ -542,7 +683,7 @@ ggplot(df_box, aes(x = Prediction_en, y = value, fill = Prediction_en)) +
     y = list(
       variable %in% c("Talweg slope (%)", "Elevation (m)", "Drainage area (km²)",
                       "Normalized active channel width (m)", "Segment length (m)",
-                      "Distance from source (km)") ~ scale_y_log10(labels = scales::label_number())
+                      "Distance from source (km)", "Multi-channel index") ~ scale_y_log10(labels = scales::label_number())
     )
   ) +
   theme_minimal() +
@@ -552,7 +693,7 @@ ggplot(df_box, aes(x = Prediction_en, y = value, fill = Prediction_en)) +
   ) +
   labs(
     x = NULL,
-    y = "Value"
+    y = NULL
   )
 
 
@@ -711,45 +852,65 @@ df_box <- resultat_conf %>%
     values_to = "value"
   ) %>%
   mutate(
+    category = paste(Prediction_en, conf_simple, sep = " - "),
+    category = factor(category, levels = c(
+        "Active - confined",
+        "Active - partly confined",
+        "Active - unconfined",
+        "Passive - confined",
+        "Passive - partly confined",
+        "Passive - unconfined"
+      ))
+  ) %>%
+  mutate(
     variable = recode(
       variable,
-      mean_Slope_talweg = "Talweg slope",
-      mean_elevation = "Elevation",
-      mean_Slope_VB = "Valley bottom slope",
-      drainage_area = "Drainage area",
-      mean_AC = "Active channel width",
-      mean_VB = "Valley bottom width",
-      measure = "Distance from source",
-      mean_meander_belt = "Meander belt width"
+      mean_Slope_talweg = "Talweg slope (%)",
+      mean_elevation = "Elevation (m)",
+      mean_Slope_VB = "Valley bottom slope (%)",
+      drainage_area = "Drainage area (km²)",
+      mean_AC = "Active channel width (m)",
+      mean_VB = "Valley bottom width (m)",
+      measure = "Distance from source (m)",
+      mean_meander_belt = "Meander belt width (m)"
     )
   )
 
 
-ggplot(df_box, aes(x = Prediction_en, y = value, fill = conf_simple)) +
+ggplot(df_box, aes(x = Prediction_en, y = value, fill = category)) +
   geom_boxplot(
     position = position_dodge(width = 0.75),
     width = 0.65,
     outlier.alpha = 0.3
   ) +
-  facet_wrap(~ variable, scales = "free_y", nrow = 3) +
+  facet_wrap(~ variable, scales = "free_y", nrow = 4) +
   theme_minimal() +
   labs(
     x = NULL,
-    y = "Value",
+    y = NULL,
     fill = "Confinement"
   ) +
   scale_fill_manual(
     values = c(
-      "unconfined" = "#A7D477",
-      "partly confined" = "#c1c182",
-      "confined" = "#EE4E4E"
+      "Active - confined" = "#a45006",
+      "Active - partly confined" = "#e08214",
+      "Active - unconfined" = "#fdb863",
+      "Passive - confined" = "#074889",
+      "Passive - partly confined" = "#3182be",
+      "Passive - unconfined" = "#6baed6"
     )
   ) +
+  guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
   scale_y_log10(labels = scales::label_number())+
   theme(
-    legend.position = "bottom",
-    axis.text.x = element_text(size = 11),
-    strip.text = element_text(face = "bold")
+      text = element_text(size = 16),   # taille globale
+      legend.position = "top",
+      axis.text.x = element_text(size = 14),
+      axis.text.y = element_text(size = 14),
+      axis.title = element_text(size = 16),
+      legend.text = element_text(size = 14),
+      legend.title = element_text(size = 15),
+      strip.text = element_text(size = 15, face = "bold")
   )
 
 
@@ -758,11 +919,11 @@ ggplot(df_box, aes(x = Prediction_en, y = value, fill = conf_simple)) +
 # ============================================
 # circle transition planform France
 # ============================================
-library(circlize)
-library(dplyr)
-library(ragg)
-library(here)
-
+# library(circlize)
+# library(dplyr)
+# library(ragg)
+# library(here)
+# 
 tttt <- resultat_final %>%
   st_drop_geometry() %>%
   # filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
@@ -836,10 +997,10 @@ circos.trackPlotRegion(
   track.index = 1,
   bg.border = NA,
   panel.fun = function(x, y) {
-    
+
     sector.name = get.cell.meta.data("sector.index")
     xlim = get.cell.meta.data("xlim")
-    
+
     circos.text(
       x = mean(xlim),
       y = 1.5,
@@ -857,77 +1018,85 @@ dev.off()
 
 
 
-# ============================================
-# circle transition planform France
-# ============================================
-library(dplyr)
-library(circlize)
-
-# --- 1. PRÉPARATION DES DONNÉES (Filtrage + Astuce visuelle 80/20 + Sécurité) ---
-data_transitions <- tttt %>%
-  arrange(axis, desc(ID_segment)) %>%
-  group_by(axis) %>%
-  mutate(to = lead(Prediction_en)) %>%
-  ungroup() %>%
-  filter(!is.na(to)) %>%
-  rename(from = Prediction_en) %>%
-  count(from, to) %>%
-  group_by(from) %>%
-  
-  # 1. On trie pour mettre le flux interne en premier, puis les plus gros flux sortants
-  arrange(from, desc(from == to), desc(n)) %>%
-  
-  # 2. On ne garde que les 5 plus gros flux par origine
-  slice_head(n = 5) %>% 
-  
-  # 3. Le trick visuel SÉCURISÉ
-  mutate(
-    a_un_interne = any(from == to),         # Vérifie si la classe a un flux interne
-    sum_sortants = sum(n[from != to]),      # Calcule le total des flux sortants
-    
-    prob = case_when(
-      # Cas 1 : Que de l'interne (100% de la place)
-      from == to & sum_sortants == 0 ~ 1.0,  
-      
-      # Cas 2 : Interne + Externe -> L'interne prend 80%
-      from == to & sum_sortants > 0 ~ 0.8,   
-      
-      # Cas 3 : Interne + Externe -> L'externe se partage les 20% restants
-      a_un_interne & from != to ~ (n / sum_sortants) * 0.2, 
-      
-      # Cas 4 : QUE de l'externe (pas d'interne du tout) -> L'externe prend 100% de la place
-      !a_un_interne & from != to ~ n / sum_sortants         
-    )
-  ) %>%
-  select(from, to, prob) %>%
-  ungroup()
-
-# --- 2. ORDRE POUR LA COLLINE SUR LE CÔTÉ ---
-df_interne <- data_transitions %>% filter(from == to)
-df_externe <- data_transitions %>% filter(from != to)
-df_final <- rbind(df_externe, df_interne)
-
-# --- 3. CRÉATION DU GRAPHIQUE AFFINÉ ---
-png("chord_morpho_thin_arrows_final.png", width = 2500, height = 2500, res = 300)
-
-circos.clear()
-circos.par(start.degree = 90, gap.degree = 4)
-
-chordDiagram(df_final,
-             grid.col = palette_lits,
-             directional = 1,
-             direction.type = "arrows",
-             link.arr.type = "big.arrow",
-             link.lwd = 0.1,               # Traits fins
-             self.link = 1,
-             link.sort = FALSE,
-             h.ratio = 0.7,                
-             transparency = 0.5,           # Plus transparent pour alléger
-             annotationTrack = c("name", "grid", "axis"),
-             annotationTrackHeight = c(0.06, 0.05))
-
-dev.off()
-circos.clear()
+# # # ============================================
+# # # circle transition planform France
+# # # ============================================
+# library(dplyr)
+# library(circlize)
+# 
+# tttt <- resultat_final %>%
+#   st_drop_geometry() %>%
+#   # filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
+#   # filter(gid_region %in% c(11)) %>%
+#   select(axis, ID_segment, Prediction_en) %>%
+#   filter(!Prediction_en %in% c("Reservoir", NA)) %>%
+#   arrange(axis, desc(ID_segment))
+# 
+# # --- 1. PRÉPARATION DES DONNÉES (Filtrage + Astuce visuelle 80/20 + Sécurité) ---
+# data_transitions <- tttt %>%
+#   arrange(axis, desc(ID_segment)) %>%
+#   group_by(axis) %>%
+#   mutate(to = lead(Prediction_en)) %>%
+#   ungroup() %>%
+#   filter(!is.na(to)) %>%
+#   rename(from = Prediction_en) %>%
+#   count(from, to) %>%
+#   group_by(from) %>%
+# 
+#   # 1. On trie pour mettre le flux interne en premier, puis les plus gros flux sortants
+#   arrange(from, desc(from == to), desc(n)) %>%
+# 
+#   # 2. On ne garde que les 5 plus gros flux par origine
+#   slice_head(n = 5) %>%
+# 
+#   # 3. Le trick visuel SÉCURISÉ
+#   mutate(
+#     a_un_interne = any(from == to),         # Vérifie si la classe a un flux interne
+#     sum_sortants = sum(n[from != to]),      # Calcule le total des flux sortants
+# 
+#     prob = case_when(
+#       # Cas 1 : Que de l'interne (100% de la place)
+#       from == to & sum_sortants == 0 ~ 1.0,
+# 
+#       # Cas 2 : Interne + Externe -> L'interne prend 80%
+#       from == to & sum_sortants > 0 ~ 0.8,
+# 
+#       # Cas 3 : Interne + Externe -> L'externe se partage les 20% restants
+#       a_un_interne & from != to ~ (n / sum_sortants) * 0.2,
+# 
+#       # Cas 4 : QUE de l'externe (pas d'interne du tout) -> L'externe prend 100% de la place
+#       !a_un_interne & from != to ~ n / sum_sortants
+#     )
+#   ) %>%
+#   select(from, to, prob) %>%
+#   ungroup()
+# 
+# # --- 2. ORDRE POUR LA COLLINE SUR LE CÔTÉ ---
+# df_interne <- data_transitions %>% filter(from == to)
+# df_externe <- data_transitions %>% filter(from != to)
+# df_final <- rbind(df_externe, df_interne)
+# 
+# # --- 3. CRÉATION DU GRAPHIQUE AFFINÉ ---
+# png("chord_morpho_thin_arrows_final.png", width = 2500, height = 2500, res = 300)
+# 
+# circos.clear()
+# circos.par(start.degree = 90, gap.degree = 4)
+# 
+# chordDiagram(df_final,
+#              grid.col = palette_lits,
+#              directional = 1,
+#              direction.type = "arrows",
+#              link.arr.type = "big.arrow",
+#              link.lwd = 0.1,               # Traits fins
+#              self.link = 1,
+#              link.sort = FALSE,
+#              h.ratio = 0.7,
+#              transparency = 0.5,           # Plus transparent pour alléger
+#              annotationTrack = c("name", "grid", "axis"),
+#              annotationTrackHeight = c(0.06, 0.05))
+# 
+# dev.off()
+# circos.clear()
 
 
 # ============================================
@@ -1053,6 +1222,167 @@ ggplot(resultat_landuse, aes(x = Prediction_en, y = surface, fill = classe)) +
     axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
   )
   
+
+# ============================================
+# Surrogate tree
+# ============================================
+library(rpart)
+library(rpart.plot)
+library(ragg)
+library(here)
+
+X_all <- test_clean %>%
+  dplyr::select(-label)
+rf_pred <- predict(modele_foret, X_all)
+
+rf_pred_en <- dplyr::recode(
+  rf_pred,
+  "rectiligne"      = "Straight",
+  "rectiligne bars" = "Straight with bars",
+  "sinueux"         = "Sinuous",
+  "sinueux ba"      = "Sinuous with bars",
+  "alternant"       = "Alternate bars",
+  "meandre actif"   = "Active meandering",
+  "meandre passif"  = "Passive meandering",
+  "tresse"          = "Braided",
+  "tresse vegetal"  = "Vegetated braided",
+  "divagant"        = "Wandering",
+  "anastomose"      = "Anastomosing",
+  "retenue"         = "Reservoir"
+)
+
+surrogate_data <- X_all
+surrogate_data$rf_pred <- rf_pred_en
+
+surrogate_data <- surrogate_data %>%
+  dplyr::rename(
+    "Water index" = mean_idx_water,
+    "Sinuosity index" = Sinuosity_meander_2,
+    "Normalized active channel width" = mean_ACW_star,
+    "Vegetated islands" = iles_veget
+    # "Active channel width" = mean_AC
+  )
+
+surrogate_tree <- rpart(
+  rf_pred ~ .,
+  data = surrogate_data,
+  method = "class",
+  control = rpart.control(
+    maxdepth = 10,
+    minsplit = 30,
+    cp = 0.001
+  )
+)
+
+ragg::agg_png(
+  here("surrogate_tree_rf.png"),
+  width = 10,
+  height = 8,
+  units = "in",
+  res = 500,
+  background = "white"
+)
+
+rpart.plot(
+  surrogate_tree,
+  type = 0,
+  # branch = 1,
+  fallen.leaves = TRUE,
+  box.palette = 0,
+  nn = FALSE,
+  extra = 0,
+  shadow.col = NA,
+  branch.col = "black",
+  col = "black",
+  border.col = "black"
+  # varlen = 0
+)
+
+dev.off()
+
+
+
+# =========================
+# eval surrogate
+# =========================
+X_train <- train %>% dplyr::select(-label)
+rf_pred_train <- predict(modele_foret, X_train)
+
+surrogate_train <- X_train
+surrogate_train$rf_pred <- rf_pred_train
+
+X_test <- testset %>% dplyr::select(-label)
+rf_pred_test <- predict(modele_foret, X_test)
+
+surrogate_test <- X_test
+surrogate_test$rf_pred <- rf_pred_test
+
+
+surrogate_tree <- rpart(
+  rf_pred ~ .,
+  data = surrogate_train,
+  method = "class",
+  control = rpart.control(
+    maxdepth = 10,
+    minsplit = 30,
+    cp = 0.005
+  )
+)
+
+# Prédictions du surrogate
+surrogate_pred_test <- predict(surrogate_tree, surrogate_test, type = "class")
+
+conf_surrogate <- confusionMatrix(
+  surrogate_pred_test,
+  surrogate_test$rf_pred
+)
+
+print(conf_surrogate)
+
+cat("Accuracy surrogate (vs RF) :", conf_surrogate$overall["Accuracy"], "\n")
+
+mean(conf_surrogate$byClass[, "Sensitivity"], na.rm = TRUE)
+mean(conf_surrogate$byClass[, "Pos Pred Value"], na.rm = TRUE)
+mean(conf_surrogate$byClass[, "F1"], na.rm = TRUE)
+
+
+
+
+# =========================
+# DATASET SURROGATE GLOBAL
+# =========================
+
+surrogate_data <- resultat_final %>%
+  st_drop_geometry() %>%
+  select(-label, -Probabilite)   # on garde uniquement X + Prediction
+
+surrogate_data$Prediction <- factor(surrogate_data$Prediction)
+
+# =========================
+# ENTRAINEMENT SURROGATE GLOBAL
+# =========================
+
+surrogate_tree <- rpart(
+  Prediction ~ .,
+  data = surrogate_data,
+  method = "class",
+  control = rpart.control(
+    maxdepth = 10,
+    minsplit = 30,
+    cp = 0.005
+  )
+)
+
+surrogate_pred <- predict(surrogate_tree, surrogate_data, type = "class")
+
+conf_surrogate <- confusionMatrix(
+  surrogate_pred,
+  surrogate_data$Prediction
+)
+
+print(conf_surrogate)
+
+cat("Accuracy surrogate (vs RF global) :", conf_surrogate$overall["Accuracy"], "\n")
 
 
 

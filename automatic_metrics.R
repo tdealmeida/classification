@@ -182,6 +182,23 @@ calculer_multichenal <- function(chenal_forme, chenal_labels) {
   return(chenal_resultats)
 }
 
+
+
+
+# ============================================
+# 6. Multichannel Index
+# ============================================
+calculer_multi_index <- function(iles_total) {
+  -
+  ile_total <- iles_total %>%
+    rename(axis = AXIS, measure_medial_axis = M) %>%
+    group_by(axis, measure_medial_axis) %>%
+    summarise(multi_index = n() + 1, .groups = "drop")
+  
+  return(ile_total)
+}
+
+
 # ============================================
 # 6. Distance à un barrage
 # ============================================
@@ -339,6 +356,9 @@ df_env <- calculer_meander_belt(meander_belt)
 # Multi-chenal
 df_multi <- calculer_multichenal(chenal_forme, chenal_labels)
 
+# Multi-chenal Index
+df_multi_index <- calculer_multi_index(iles_total)
+
 # Distance à un barrage
 # df_barrage <- calculer_distance_barrage(Data, roe)
 
@@ -396,6 +416,15 @@ metrique <- metrique %>%
   mutate(
     multi_chenaux = as.numeric(multi_chenaux),
     multi_chenaux = ifelse(is.na(multi_chenaux), 1, multi_chenaux)
+  )
+
+metrique <- metrique %>%
+  left_join(
+    df_multi_index %>% select(axis, measure_medial_axis, multi_index),
+    by = c("axis", "measure_medial_axis")
+  ) %>%
+  mutate(
+    multi_index = ifelse(is.na(multi_index), 1, multi_index)
   )
 
 # metrique <- metrique %>%
@@ -462,7 +491,9 @@ metrique <- metrique %>%
 
 rm(df_base, df_drainage, df_conf, df_sin, df_env, df_multi, df_iles, df_retenue, 
    calculer_metriques_base, calculer_drainage_area, calculer_conf_degree, calculer_sinuosite,
-   calculer_meander_belt, calculer_multichenal, calculer_iles, calculer_retenue
+   calculer_meander_belt, calculer_multichenal, calculer_iles, calculer_retenue,
+   calculer_multi_index, calculer_distance_barrage, calculer_amplitude, 
+   calculer_stream_power, df_multi_index
 )
 
 

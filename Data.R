@@ -340,6 +340,70 @@ iles_veget <- rbind(iles_veget_rmc,
                       iles_veget_bretagne
 )
   
+
+# ------------------------------------------------
+# 10. Import des îles total par bassin
+# ------------------------------------------------
+iles_total_rmc <- st_read("Data/RMC/iles_total_rmc.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS_2, M_2) %>%
+  rename(AXIS = AXIS_2,
+         M = M_2)
+
+iles_total_rhin <- st_read("Data/Rhin/iles_total_rhin.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_loire <- st_read("Data/Loire/iles_total_loire.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_seine <- st_read("Data/Seine/iles_total_seine.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_nord <- st_read("Data/Nord/iles_total_nords.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_garonne <- st_read("Data/Garonne/iles_total_garonne.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_adour <- st_read("Data/Adour/iles_total_adour.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_charente <- st_read("Data/Charente/iles_total_charente.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_moselle <- st_read("Data/Moselle/iles_total_moselle.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_meuse <- st_read("Data/Meuse/iles_total_meuse.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total_bretagne <- st_read("Data/Bretagne/iles_total_bretagne.gpkg") %>%
+  st_drop_geometry() %>%
+  select(AXIS, M)
+
+iles_total <- rbind(iles_total_rmc,
+                      iles_total_rhin,
+                      iles_total_loire,
+                      iles_total_seine,
+                      iles_total_nord,
+                      iles_total_garonne,
+                      iles_total_adour,
+                      iles_total_charente,
+                      iles_total_moselle,
+                      iles_total_meuse,
+                      iles_total_bretagne
+)
+  
+  
 # ------------------------------------------------
 # 11. Import des retenues par bassin
 # ------------------------------------------------
@@ -483,6 +547,10 @@ rm(query, con,pourcentage_df, toponymes_valides, surface_drainee_rhone,
    iles_veget_seine, iles_veget_nord, iles_veget_garonne,
    iles_veget_adour, iles_veget_charente, iles_veget_moselle,
    iles_veget_meuse, iles_veget_bretagne,
+   iles_total_rmc, iles_total_rhin, iles_total_loire,
+   iles_total_seine, iles_total_nord, iles_total_garonne,
+   iles_total_adour, iles_total_charente, iles_total_moselle,
+   iles_total_meuse, iles_total_bretagne,
    retenue_rmc, retenue_rhin, retenue_loire,
    retenue_seine, retenue_nord, retenue_garonne,
    retenue_adour, retenue_charente, retenue_moselle,
