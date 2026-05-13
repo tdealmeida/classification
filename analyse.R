@@ -389,3 +389,12 @@ ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
   )
 
 
+
+
+
+
+
+tao <- resultat_final %>%
+  filter(!is.na(Prediction))
+
+

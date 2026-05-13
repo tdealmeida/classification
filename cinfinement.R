@@ -11,45 +11,50 @@ library(circlize)
 resultat_final <- resultat_final %>%
   mutate(CD = sum_conf_degree / sum_length)
 
-
 resultat_final <- resultat_final %>%
   mutate(
     Prediction_en = recode(Prediction,
                            "rectiligne"        = "Straight",
-                           # "rectiligne bars"   = "Straight with bars",
+                           "rectiligne bars"   = "Alternate bars",
                            "sinueux"           = "Sinuous",
-                           "alternate bars"    = "Alternate bars",
-                           # "sinueux ba"        = "Sinuous with bars",
+                           # "alternate bars"  = "Alternate bars",
+                           "sinueux bars"      = "Sinuous with bars",
                            "meandre actif"     = "Active meandering",
                            "meandre passif"    = "Passive meandering",
                            "tresse"            = "Braided",
-                           "tresse vegetal"    = "Vegetated braided",
+                           # "tresse vegetal"  = "Vegetated braided",
                            "divagant"          = "Wandering",
-                           "anastomose"        = "Anastomosing",
-                           "retenue"           = "Reservoir"
+                           "anastomose"        = "Anastomosed",
+                           "anabranche"        = "Anabranching",
+                           "reservoir"           = "Reservoir",
+                           "intermittent"      = "Intermittent",
     )
   )
 
 
 resultat_conf <- resultat_final %>%
   mutate(
-    idx_conf_inverse = mean_VB / mean_AC, 
+    # idx_conf_inverse2 = case_when(
+    #   mean_AC == 0 & mean_VB > 0 ~ 0,
+    #   TRUE ~ mean_VB / mean_AC
+    # ),
+    idx_conf_inverse = mean_VB / mean_AC,
     
     CD = ifelse(mean_AC < 4 & mean_Slope_talweg > 0.05, 1, CD), # pour eviter mettre en confiné les secteurs pentu sans ac
     
     type_plan = Prediction %in% c(
       "rectiligne", "rectiligne bars",
-      "sinueux", "sinueux ba", "alternate bars",
+      "sinueux", "sinueux bars", "alternate bars",
       "meandre passif", "meandre actif" 
       # "retenue"
     ),
     
     type_multi = Prediction %in% c(
       "tresse", "tresse vegetal",
-      "divagant", "anastomose"
+      "divagant", "anastomose", "anabranche"
     ),
     
-    type_reservoir = Prediction == "retenue",
+    type_reservoir = Prediction %in% c("retenue","intermittent"),
     
     conf_simple = case_when(
       
@@ -101,27 +106,31 @@ resultat_conf <- resultat_final %>%
         "Passive meandering",
         "Active meandering",
         "Braided",
-        "Vegetated braided",
         "Wandering",
-        "Anastomosing"
+        "Anastomosed",
+        "Anabranching"
+        
       ) ~ paste(Prediction_en, conf_simple),
       
       Prediction_en == "Reservoir" ~ "Reservoir",
+      Prediction_en == "Intermittent" ~ "Intermittent",
       
       TRUE ~ NA_character_
     )
   )
 
+resultat_conf <- resultat_conf %>%
+  mutate(
+   order_figure = case_when(
+      Prediction %in% c("meandre actif", "meandre passif") ~ 1,
+      TRUE ~ 2
+  ))
 
-
-st_write(resultat_conf, "TGH_RF_total_conf.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(resultat_conf, "TGH_conf.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# st_write(resultat_conf, "TGH_terrain.shp", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 # resultat_final <- st_read("TGH_RF_10.gpkg")
 # resultat_conf <- st_read("TGH_RF_total_conf.gpkg")
-
-
-
-
 
 
 
@@ -213,6 +222,8 @@ resultat_conf <- resultat_conf %>%
       )
     )
 
+  
+  
 write_sf(resultat_conf, "TGH_confinement.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 

@@ -18,16 +18,41 @@
 # 1. Chargement des Bibliothèques
 # ============================================
 library(dplyr)
-# detach("package:dplyr", unload = TRUE)
 library(RPostgreSQL)
 library(purrr)
 library(tidyr)
 library(sf)
 library(ggplot2)
-library(zoo)  
+library(zoo)
 library(patchwork)
 library(circlize)
-
+library(caret)
+library(randomForest)
+library(units)
+library(concaveman)
+library(changepoint)
+library(stringr)
+library(Rbeast)
+library(lwgeom)       # st_split
+library(qgisprocess)  # QGIS
+library(rpart)
+library(rpart.plot)
+library(ggpubr)
+library(forcats)
+library(ggtext)
+library(ggh4x)
+library(corrplot)
+library(scales)
+library(ragg)
+library(here)
+# Sys.setenv(
+#   R_QGISPROCESS_PATH = "C:/Program Files/QGIS 3.44.9/bin/qgis_process-qgis-ltr.bat",
+#   QGIS_CUSTOM_CONFIG_PATH = tempdir()
+# )
+# 
+# qgisprocess::qgis_configure()
+# qgisprocess::qgis_session_info()
+# qgisprocess::qgis_enable_plugins()
 
 # ============================================
 # 2. Import des métriques depuis la base de données FCT  
@@ -60,18 +85,20 @@ dbDisconnect(con) # Fermeture de la connexion à la base de données
 # ------------------------------------------------
 # 3. Filtrage des petits DGO NA (<20m) inter DGO
 # ------------------------------------------------
-data <- data %>%
-  select(-fid)
+# data <- data %>%
+  # select(-fid)
 
 Data <- data %>%
   mutate(length = as.numeric(st_length(geom))) %>%
-  filter(!(is.na(measure_medial_axis) & length < 20)) 
+  filter(!(is.na(measure_medial_axis) & length < 20)) %>%
+  mutate(ID_DGO = fid)%>%
+  select(-fid)
 
 # ------------------------------------------------
 # 4. Export des données
 # ------------------------------------------------
-st_write(Data, "Data_DGO_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
-st_write(data, "data_DGO_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# st_write(Data, "Data_DGO_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(Data, "data_DGO_final2.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 # ------------------------------------------------
 # 5. Import des surfaces drainées par bassin
@@ -490,7 +517,6 @@ meanderbelt_axis_nord <- st_read("Data/Nord/meanderbelt_axis_nords_2.gpkg") %>%
 
 meanderbelt_axis_garonne <- st_read("Data/Garonne/meanderbelt_axis_garonne_3.gpkg") %>%
   st_transform(2154)%>%
-  # rename(geom = geometry) %>%
   select(axis, toponyme)
 
 meanderbelt_axis_adour <- st_read("Data/Adour/meanderbelt_axis_adour_3.gpkg") %>%

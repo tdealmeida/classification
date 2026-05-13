@@ -163,7 +163,7 @@ process_toponyme <- function(top) {
       multi_chenaux_index = round(mean(multi_index, na.rm = TRUE)),
       nb_na = sum(is.na(WC)),
       na_pct = nb_na / nb_DGO * 100,
-      multi_chenal = value_pct(multi_chenaux, val = 2),   #
+      # multi_chenal = value_pct(multi_chenaux, val = 2),   #
       iles_veget = value_pct(ile_veget, val = 2),       #
       retenue = value_pct(reservoir, val = 2),       #
       # roe = min(roe, na.rm = TRUE),               # ✅ min au lieu de moyenne
@@ -191,9 +191,21 @@ TGH <- bind_rows(map(all_results, "res"))
 ALL_SUBDATA <- bind_rows(map(all_results, "subdata"))
 
 # str(TGH)
-# st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 # write.csv(TGH, "TGH.csv", row.names = FALSE) # Export des données nettoyées en shapefile
-# st_write(ALL_SUBDATA, "ALL_SUBDATA.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(ALL_SUBDATA, "ALL_SUBDATA.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
+
+TGH <- TGH %>%
+  mutate(
+    idx_conf_segment = mean_AC/mean_VB,
+    idx_water_segment = case_when(
+      mean_AC == 0 & mean_WC == 0 ~ 1,
+      mean_WC == 0 & mean_AC > 0 ~ 0,
+      TRUE ~ mean_WC / mean_AC
+    )
+  )
+
 
 Data_points <- ALL_SUBDATA %>%
   group_by(axis, ID_segment) %>%
@@ -220,44 +232,40 @@ Data_points <- ALL_SUBDATA %>%
 st_write(Data_points, "Rupture.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
-Data_points_mid <- ALL_SUBDATA %>%
-  group_by(axis, ID_segment) %>%
-  arrange(desc(measure)) %>%
-  slice(ceiling(n() / 2)) %>%
-  st_as_sf() %>%
-  mutate(
-    geom = st_sfc(map(geom, ~ {
-      coords <- st_coordinates(.x)
-      mid <- ceiling(nrow(coords) / 2)
-      st_point(coords[mid, 1:2])
-    }), crs = st_crs(.))
-  ) %>%
-  st_as_sf() %>%
-  mutate(geom = st_zm(geom, drop = TRUE, what = "ZM")) %>%
-  ungroup() %>%
-  st_transform(2154) %>%
-  select(axis, ID_segment, toponyme)
-
-
-st_write(Data_points_mid, "midpoints.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
-
-
-
-
-
-
+# Data_points_mid <- ALL_SUBDATA %>%
+#   group_by(axis, ID_segment) %>%
+#   arrange(desc(measure)) %>%
+#   slice(ceiling(n() / 2)) %>%
+#   st_as_sf() %>%
+#   mutate(
+#     geom = st_sfc(map(geom, ~ {
+#       coords <- st_coordinates(.x)
+#       mid <- ceiling(nrow(coords) / 2)
+#       st_point(coords[mid, 1:2])
+#     }), crs = st_crs(.))
+#   ) %>%
+#   st_as_sf() %>%
+#   mutate(geom = st_zm(geom, drop = TRUE, what = "ZM")) %>%
+#   ungroup() %>%
+#   st_transform(2154) %>%
+#   select(axis, ID_segment, toponyme)
+# 
+# 
+# st_write(Data_points_mid, "midpoints.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 df_source <- ALL_SUBDATA %>%
   st_drop_geometry() %>%
   filter(!is.na(source_cpt)) %>%
-  distinct(axis, measure, .keep_all = TRUE) %>%
-  mutate(axis = as.numeric(axis)) %>%
-  select(axis, measure, source_cpt)
+  # distinct(axis, ID_DGO, .keep_all = TRUE) %>%
+  mutate(axis = as.character(axis)) %>%
+  select(axis, ID_DGO, source_cpt)
 
 df2_new <- data %>%
-  mutate(axis = as.numeric(axis)) %>%
-  left_join(df_source, by = c("axis", "measure"))
+  mutate(axis = as.character(axis),
+         ID_DGO = as.character(fid)
+         ) %>%
+  left_join(df_source, by = c("axis", "ID_DGO"))
 
 df2_new <- df2_new %>%
   arrange(axis, measure) %>%
@@ -279,12 +287,20 @@ df2_group <- df2_group %>%
   select(-longueur)
 
 TGH <- TGH %>%
-  left_join(df2_group, by = c("axis", "ID_segment" = "segment_id"))
+  mutate(axis = as.character(axis)) %>%
+  left_join(
+    df2_group %>%
+      mutate(axis = as.character(axis)),
+    by = c("axis", "ID_segment" = "segment_id")
+  )
 
 st_write(TGH, "TGH.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
-
-
+# 
+# ab <- TGH %>%
+#   filter(axis == "2000803141") %>%
+#   mutate(test1 = mean_WC / mean_AC) %>%
+#   select(test1, mean_idx_water)
 
 
 

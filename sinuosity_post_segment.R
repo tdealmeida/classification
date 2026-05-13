@@ -15,6 +15,7 @@ library(qgisprocess)  # Exécution d'algorithmes QGIS depuis R)
 meander_belt_axis <- meanderbelt_axis # calculé dans Data
 
 meander_belt_axis <- meanderbelt_axis %>%
+  mutate(axis = as.character(axis)) %>%
   group_by(axis) %>%
   mutate(geom = st_line_merge(geom))
 
@@ -25,7 +26,6 @@ rupture_points <- Data_points %>%
   mutate(ID = seq_len(n())) %>%
   select(ID,ID_segment, toponyme,axis,geom) %>%
   st_as_sf()
-
 
 # =====================================================================
 # SNAP : Alignement des ruptures sur l’axe médian Meander_belt
@@ -59,7 +59,9 @@ for(i in seq_along(axes_unique)) {
     REFERENCE_LAYER = medial_axis_group, # Référence : medial axis
     TOLERANCE = 10000,                  # Distance de tolérance (en unités projetées)
     BEHAVIOR = 1                        # Stratégie de snap
-  )
+    )
+  
+  
   
   # Lecture du résultat et ajout de l’AXIS
   snap_sf <- st_read(snap_result$OUTPUT) %>%
@@ -93,11 +95,11 @@ rupture_snap_meander <- do.call(rbind, rupture_snap_sf_list)
 # midpoint_snap <- do.call(rbind, midpoint_snap_sf_list)
 
 
+
 # =====================================================================
 # Zone tampon autour des points de rupture
 # =====================================================================
 rupture_buffer_meander <- st_buffer(rupture_snap_meander, dist = 1)
-
 
 
 
@@ -132,11 +134,25 @@ medial_meander <- medial_meander %>%
 
 
 
+# TGH_ID <- TGH %>%
+#   # left_join(medial_VB %>% select(axis, ID_segment, length_VB),
+#   #           by = c("axis", "ID_segment")) %>%
+#   left_join(medial_meander %>% select(axis, ID_segment, length_meander),
+#             by = c("axis", "ID_segment")) 
+
+
+
 TGH_ID <- TGH %>%
-  # left_join(medial_VB %>% select(axis, ID_segment, length_VB),
-  #           by = c("axis", "ID_segment")) %>%
-  left_join(medial_meander %>% select(axis, ID_segment, length_meander),
-            by = c("axis", "ID_segment")) 
+  mutate(axis = as.character(axis)) %>%
+  left_join(
+    medial_meander %>%
+      mutate(axis = as.character(axis)) %>%
+      select(axis, ID_segment, length_meander),
+    by = c("axis", "ID_segment")
+  )
+
+st_write(TGH_ID, "TGH_ID_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+
 
 TGH_ID <- TGH_ID %>%
   mutate(
@@ -145,14 +161,19 @@ TGH_ID <- TGH_ID %>%
         Sinuosity_meander_2 = as.numeric(longueur_data) / as.numeric(length_meander)
          )
 
-
-
+TGH_ID <- TGH_ID %>%
+  mutate(dif_longueur = longueur_data - sum_length,
+         Sinuosity_meander_2 = ifelse(dif_longueur > 1500, NA_real_, Sinuosity_meander_2),
+         Sinuosity_meander_2 = ifelse(Sinuosity_meander_2 < 1, NA_real_, Sinuosity_meander_2),
+         # dif_lenght_meander = longueur_data - length_meander
+         Sinuosity_meander_2 = ifelse(axis %in% c("2000840171", "2000874101", "2000836239"), NA_real_, Sinuosity_meander_2)
+  )
 
 
 # TGH_0.4_ampl <- TGH_ID 
 # st_write(TGH_0.4_ampl, "TGH_04_ampl.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
-st_write(TGH_ID, "TGH_ID_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+st_write(TGH_ID, "TGH_ID_fr2.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 
@@ -162,7 +183,7 @@ rm(medial_axis_group, medial_axis_segments_sf, result, rupture_group, rupture_sn
 
 
 
-TGH_ID <- st_read("TGH_ID_fr.gpkg") 
+# TGH_ID <- st_read("TGH_ID_fr.gpkg") 
 
 # TGH_classif <- TGH_ID %>%
 #   mutate(
@@ -259,75 +280,75 @@ TGH_ID <- st_read("TGH_ID_fr.gpkg")
 
 
 
-TGH_classif_simplifie <- TGH_ID %>%
-  mutate(
-    noeud1 = case_when(
-      retenue > 0.4 ~ "retenue", # fin
-      retenue <= 0.4 ~ "rivière"
-    ),
-    noeud2 = case_when(
-      noeud1 == "rivière" & mean_idx_water < 0.95 ~ "Lit à banc",
-      noeud1 == "rivière" & mean_idx_water >= 0.95 ~ "Lit sans bancs",
-      TRUE ~ noeud1
-    ),
-    noeud3 = case_when(
-      noeud2 == "Lit à banc" & mean_idx_water < 0.05  ~ "Lit sans bancs",
-      noeud2 == "Lit à banc" & mean_idx_water >= 0.05  ~ "Lit à banc",
-      TRUE ~ noeud2
-    ),
-    
-    noeud4 = case_when(
-      noeud3 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
-      noeud3 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
-      noeud3== "Lit sans bancs" & iles_veget >= 0.8  ~ "anastomose", # fin
-      noeud3 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
-      TRUE ~ noeud3
-    ),
-    noeud5 = case_when(
-      noeud4 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal", # fin
-      noeud4 == "tresse" & iles_veget <= 0.7 ~ "tresse", # fin
-      noeud4 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", # fin
-      noeud4 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
-      noeud4 == "Chenal unique" & Sinuosity_meander_2 > 1.3 ~ "meandre passif", # fin
-      noeud4 == "Chenal unique" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
-      TRUE ~ noeud4
-    ),
-    noeud6 = case_when(
-      noeud5 == "Bancs" & Sinuosity_meander_2 > 1.3  ~ "meandre actif", # fin
-      noeud5 == "Bancs" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
-      noeud5 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux", # fin
-      noeud5 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne", # fin
-      TRUE ~ noeud5
-    ),
-    Planform = case_when(
-      noeud6 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne bars", # fin
-      noeud6 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux ba", # fin
-      TRUE ~ noeud6
-    ),
-    noeud7 = case_when(
-      mean_AC > 4 ~ "Lit",
-      mean_AC <= 4   ~ "Pas de lit", # fin
-      TRUE ~ Planform
-    ),
-    noeud8 = case_when(
-      noeud7 == "Lit" & na_pct < 35 ~ "Lit en eau",
-      noeud7 == "Lit" & na_pct >= 35 ~ "Lit sans eau",
-      TRUE ~ noeud7
-    ),
-    Process = case_when(
-      noeud8 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
-      noeud8 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
-      TRUE ~ noeud8
-    ),
-  )
-
-
-TGH_ID <- TGH_ID %>%
-  left_join(TGH_classif_simplifie %>% st_drop_geometry() %>% select(axis,ID_segment,Planform , Process),
-            by = c("axis", "ID_segment")
-  )
-
-st_write(TGH_ID, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
+# TGH_classif_simplifie <- TGH_ID %>%
+#   mutate(
+#     noeud1 = case_when(
+#       retenue > 0.4 ~ "retenue", # fin
+#       retenue <= 0.4 ~ "rivière"
+#     ),
+#     noeud2 = case_when(
+#       noeud1 == "rivière" & mean_idx_water < 0.95 ~ "Lit à banc",
+#       noeud1 == "rivière" & mean_idx_water >= 0.95 ~ "Lit sans bancs",
+#       TRUE ~ noeud1
+#     ),
+#     noeud3 = case_when(
+#       noeud2 == "Lit à banc" & mean_idx_water < 0.05  ~ "Lit sans bancs",
+#       noeud2 == "Lit à banc" & mean_idx_water >= 0.05  ~ "Lit à banc",
+#       TRUE ~ noeud2
+#     ),
+#     
+#     noeud4 = case_when(
+#       noeud3 == "Lit à banc" & mean_ACW_star > 5.5  ~ "tresse",
+#       noeud3 == "Lit à banc" & mean_ACW_star <= 5.5  ~ "Non tresse",
+#       noeud3== "Lit sans bancs" & iles_veget >= 0.8  ~ "anastomose", # fin
+#       noeud3 == "Lit sans bancs" & iles_veget < 0.8 ~ "Chenal unique",
+#       TRUE ~ noeud3
+#     ),
+#     noeud5 = case_when(
+#       noeud4 == "tresse" & iles_veget > 0.7 ~ "tresse vegetal", # fin
+#       noeud4 == "tresse" & iles_veget <= 0.7 ~ "tresse", # fin
+#       noeud4 == "Non tresse" & mean_ACW_star > 3 ~ "divagant", # fin
+#       noeud4 == "Non tresse" & mean_ACW_star <= 3 ~ "Bancs",
+#       noeud4 == "Chenal unique" & Sinuosity_meander_2 > 1.3 ~ "meandre passif", # fin
+#       noeud4 == "Chenal unique" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
+#       TRUE ~ noeud4
+#     ),
+#     noeud6 = case_when(
+#       noeud5 == "Bancs" & Sinuosity_meander_2 > 1.3  ~ "meandre actif", # fin
+#       noeud5 == "Bancs" & Sinuosity_meander_2 <= 1.3 ~ "Non méandre",
+#       noeud5 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux", # fin
+#       noeud5 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne", # fin
+#       TRUE ~ noeud5
+#     ),
+#     Planform = case_when(
+#       noeud6 == "Non méandre" & Sinuosity_meander_2 <= 1.1 ~ "rectiligne bars", # fin
+#       noeud6 == "Non méandre" & Sinuosity_meander_2 > 1.1 ~ "sinueux ba", # fin
+#       TRUE ~ noeud6
+#     ),
+#     noeud7 = case_when(
+#       mean_AC > 4 ~ "Lit",
+#       mean_AC <= 4   ~ "Pas de lit", # fin
+#       TRUE ~ Planform
+#     ),
+#     noeud8 = case_when(
+#       noeud7 == "Lit" & na_pct < 35 ~ "Lit en eau",
+#       noeud7 == "Lit" & na_pct >= 35 ~ "Lit sans eau",
+#       TRUE ~ noeud7
+#     ),
+#     Process = case_when(
+#       noeud8 == "Lit sans eau" & mean_ACW_star > 5.5 ~ "tresse intermittent", # fin
+#       noeud8 == "Lit sans eau" & mean_ACW_star <= 5.5 ~ "intermittent", # fin
+#       TRUE ~ noeud8
+#     ),
+#   )
+# 
+# 
+# TGH_ID <- TGH_ID %>%
+#   left_join(TGH_classif_simplifie %>% st_drop_geometry() %>% select(axis,ID_segment,Planform , Process),
+#             by = c("axis", "ID_segment")
+#   )
+# 
+# st_write(TGH_ID, "TGH_classif_simplifie.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile
 
 
 # st_write(TGH_ID, "TGH_fr.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile

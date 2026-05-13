@@ -6,17 +6,17 @@
 # ============================================
 # 0. Chargement des Bibliothèques
 # ============================================
-library(dplyr)
-library(RPostgreSQL)
-library(purrr)
-library(tidyr)
-library(sf)
-library(ggplot2)
-library(caret)
-library(randomForest)
-library(units)
-library(concaveman)
-library(zoo) 
+# library(dplyr)
+# library(RPostgreSQL)
+# library(purrr)
+# library(tidyr)
+# library(sf)
+# library(ggplot2)
+# library(caret)
+# library(randomForest)
+# library(units)
+# library(concaveman)
+# library(zoo) 
 
 # ============================================
 # 1. Métriques de base
@@ -25,7 +25,9 @@ calculer_metriques_base <- function(Data) {
   
   metriques_base <- Data %>%
     mutate(
-      axis  = as.numeric(axis),
+      axis  = as.character(axis),
+      ID_DGO = as.character(ID_DGO),
+      measure = as.numeric(measure),
       measure_medial_axis = as.numeric(measure_medial_axis),
       AC    = active_channel_width,
       VB    = valley_bottom_width,
@@ -48,7 +50,8 @@ calculer_metriques_base <- function(Data) {
 calculer_drainage_area <- function(surface_drainee) {
   
     drainage_area <- surface_drainee %>%
-      rename(measure_medial_axis = measure)
+      rename(measure_medial_axis = measure) %>%
+      mutate(axis = as.character(axis))
     
   return(drainage_area)
 }
@@ -59,7 +62,8 @@ calculer_drainage_area <- function(surface_drainee) {
 calculer_conf_degree <- function(margins_VB_sum) {
   
   margins <- margins_VB_sum %>%
-    rename(conf_degree = longueur_margins)
+    rename(conf_degree = longueur_margins) %>%
+    mutate(axis = as.character(axis))
   
   return(margins)
 }
@@ -121,7 +125,8 @@ calculer_sinuosite <- function(Data) {
     }) %>%
     ungroup() %>%
     select(axis, measure, angle_deg) %>%
-    st_drop_geometry()
+    st_drop_geometry() %>%
+    mutate(axis = as.character(axis))
   
   return(SIN)
 }
@@ -134,7 +139,8 @@ calculer_meander_belt <- function(meander_belt) {
   meanderbelt <- meander_belt %>%
     rename(axis = AXIS_2,
            measure_medial_axis = M,
-           meander_belt = enveloppe)
+           meander_belt = enveloppe) %>%
+    mutate(axis = as.character(axis))
 
   return(meanderbelt)
 }
@@ -142,45 +148,46 @@ calculer_meander_belt <- function(meander_belt) {
 # ============================================
 # 5. Multi-chenal (Random Forest)
 # ============================================
-calculer_multichenal <- function(chenal_forme, chenal_labels) {
-
-  chenal_complet <- chenal_forme %>%
-    left_join(chenal_labels, by = c("AXIS", "M"))
-  
-  colonnes_a_exclure <- c("AXIS", "M", "geom")
-  
-  donnees_connues <- chenal_complet %>%
-    st_drop_geometry() %>%
-    filter(multi %in% c(0, 1)) %>%
-    filter(rowSums(!is.na(select(., -all_of(c("multi", colonnes_a_exclure))))) > 0) %>%
-    select(-all_of(colonnes_a_exclure))
-  
-  set.seed(123)
-  
-  # Entraînement complet (pas de séparation train/test ici pour le code de prod, on utilise tout pour prédire)
-  donnees_connues$multi <- as.factor(donnees_connues$multi)
-  
-  modele_foret <- randomForest(
-    multi ~ ., 
-    data = donnees_connues,
-    na.action = na.roughfix,
-    importance = FALSE # Pas besoin pour la prod
-  )
-  
-  # 3. Prédiction
-  donnees_propres <- chenal_complet %>%
-    select(-all_of(colonnes_a_exclure)) %>%
-    st_drop_geometry()
-  
-  predictions_complet <- predict(modele_foret, newdata = donnees_propres)
-  
-  chenal_resultats <- chenal_complet %>%
-    mutate(multi_chenaux = predictions_complet) %>%
-    select(AXIS, M, multi_chenaux) %>%
-    st_drop_geometry()
-  
-  return(chenal_resultats)
-}
+# calculer_multichenal <- function(chenal_forme, chenal_labels) {
+# 
+#   chenal_complet <- chenal_forme %>%
+#     left_join(chenal_labels, by = c("AXIS", "M"))
+# 
+#   colonnes_a_exclure <- c("AXIS", "M", "geom")
+# 
+#   donnees_connues <- chenal_complet %>%
+#     st_drop_geometry() %>%
+#     filter(multi %in% c(0, 1)) %>%
+#     filter(rowSums(!is.na(select(., -all_of(c("multi", colonnes_a_exclure))))) > 0) %>%
+#     select(-all_of(colonnes_a_exclure))
+# 
+#   set.seed(123)
+# 
+#   # Entraînement complet (pas de séparation train/test ici pour le code de prod, on utilise tout pour prédire)
+#   donnees_connues$multi <- as.factor(donnees_connues$multi)
+# 
+#   modele_foret <- randomForest(
+#     multi ~ .,
+#     data = donnees_connues,
+#     na.action = na.roughfix,
+#     importance = FALSE # Pas besoin pour la prod
+#   )
+# 
+#   # 3. Prédiction
+#   donnees_propres <- chenal_complet %>%
+#     select(-all_of(colonnes_a_exclure)) %>%
+#     st_drop_geometry()
+# 
+#   predictions_complet <- predict(modele_foret, newdata = donnees_propres)
+# 
+#   chenal_resultats <- chenal_complet %>%
+#     mutate(multi_chenaux = predictions_complet) %>%
+#     select(AXIS, M, multi_chenaux) %>%
+#     st_drop_geometry() %>%
+#     mutate(axis = as.character(axis))
+#   
+#   return(chenal_resultats)
+# }
 
 
 
@@ -189,11 +196,12 @@ calculer_multichenal <- function(chenal_forme, chenal_labels) {
 # 6. Multichannel Index
 # ============================================
 calculer_multi_index <- function(iles_total) {
-  -
+  
   ile_total <- iles_total %>%
     rename(axis = AXIS, measure_medial_axis = M) %>%
     group_by(axis, measure_medial_axis) %>%
-    summarise(multi_index = n() + 1, .groups = "drop")
+    summarise(multi_index = n() + 1, .groups = "drop") %>%
+    mutate(axis = as.character(axis))
   
   return(ile_total)
 }
@@ -250,7 +258,8 @@ calculer_iles <- function(iles_veget) {
   
   ile_veget <- iles_veget %>%
     rename(axis = AXIS, measure_medial_axis = M) %>%
-    distinct() 
+    distinct()  %>%
+    mutate(axis = as.character(axis))
   
   return(ile_veget)
 }
@@ -262,7 +271,8 @@ calculer_retenue <- function(retenu) {
   
   retenue <- retenu %>%
     rename(axis = AXIS, measure_medial_axis = M) %>%
-    distinct() 
+    distinct()  %>%
+    mutate(axis = as.character(axis))
 
   return(retenue)
 }
@@ -354,7 +364,7 @@ df_sin <- calculer_sinuosite(Data)
 df_env <- calculer_meander_belt(meander_belt)
 
 # Multi-chenal
-df_multi <- calculer_multichenal(chenal_forme, chenal_labels)
+# df_multi <- calculer_multichenal(chenal_forme, chenal_labels)
 
 # Multi-chenal Index
 df_multi_index <- calculer_multi_index(iles_total)
@@ -408,15 +418,15 @@ metrique <- metrique %>%
     by = c("axis", "measure_medial_axis")
   )
 
-metrique <- metrique %>%
-  left_join(
-    df_multi %>% select(AXIS, M, multi_chenaux),
-    by = c("axis" = "AXIS", "measure_medial_axis" = "M")
-  ) %>%
-  mutate(
-    multi_chenaux = as.numeric(multi_chenaux),
-    multi_chenaux = ifelse(is.na(multi_chenaux), 1, multi_chenaux)
-  )
+# metrique <- metrique %>%
+#   left_join(
+#     df_multi %>% select(AXIS, M, multi_chenaux),
+#     by = c("axis" = "AXIS", "measure_medial_axis" = "M")
+#   ) %>%
+#   mutate(
+#     multi_chenaux = as.numeric(multi_chenaux),
+#     multi_chenaux = ifelse(is.na(multi_chenaux), 1, multi_chenaux)
+#   )
 
 metrique <- metrique %>%
   left_join(
@@ -489,6 +499,9 @@ metrique <- metrique %>%
 metrique <- metrique %>%
   mutate(ACW_star = AC / (drainage_area^0.44))
 
+
+st_write(metrique, "metrique.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile)
+
 rm(df_base, df_drainage, df_conf, df_sin, df_env, df_multi, df_iles, df_retenue, 
    calculer_metriques_base, calculer_drainage_area, calculer_conf_degree, calculer_sinuosite,
    calculer_meander_belt, calculer_multichenal, calculer_iles, calculer_retenue,
@@ -497,5 +510,7 @@ rm(df_base, df_drainage, df_conf, df_sin, df_env, df_multi, df_iles, df_retenue,
 )
 
 
-
+# tab <- metrique%>%
+#   select(-fid)
+# st_write(tab, "tab1.gpkg", delete_layer = TRUE) # Export des données nettoyées en shapefile)
 
