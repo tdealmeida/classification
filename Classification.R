@@ -1,7 +1,7 @@
 # ----------------------------
 # 1. Chargement des données spatiales
 # ----------------------------
-TGH_ID <- st_read("TGH_ID_fr.gpkg")
+TGH_ID <- st_read("TGH_ID_fr2.gpkg")
 # TGH    <- st_read("TGH.gpkg")
 
 # 👉 Ajout d'un indice multi-chenaux depuis TGH
@@ -29,11 +29,12 @@ TGH_ID <- st_read("TGH_ID_fr.gpkg")
 
 label <- st_read("label_visu.gpkg") %>%
   # select(-label) %>%
-  rename(label = label_final_finall)
+  # rename(label = label_final_finall)
+  rename(label = label_final_v4)
 
 label <- label %>%
   mutate(label = recode(label,
-                        # "intermittent" = NA_character_,
+                        "intermittent" = NA_character_,
                         "a voir tresse" = "tresse",
                         "a voir divagant" = "divagant",
                         "a voir meandre passif" = "meandre passif",
@@ -43,13 +44,19 @@ label <- label %>%
                         "a voir meandre actif" = "meandre actif",
                         "a voir anabranche" = "anabranche",
                         "a voir voir anabranche" = "anabranche",
-                        "a voir anabranche anastomose" = "anastomose",
-                        
+                        "a voir voir anastomose" = "anastomose",
+                        "autre multi" = "ile eparses",
+                        "a voir autre multi" = "ile eparses",
+                        # "a voir voir tresse" = "tresse",
+                        "intermittent tresse" = "tresse",
+                        "intermittent rectiligne" = "rectiligne bars",
+                        "intermittent rectiligne bars" = "rectiligne bars",
+                        "intermittent sinueux" = "sinueux bars"
                         
   ))%>%
   filter(
     !grepl("^a voir|^avoir", label, ignore.case = TRUE)) %>%
-  select(-label_v1, -option1)
+  select(-label_v1)
 
 table(label$label)
 
@@ -164,7 +171,9 @@ colonnes_a_exclure <- c(
   # "ID_DGO",
   # "multi_chenal", 
   "Delta_WC",
+  # "step_WC",
   "mean_Slope_talweg",
+  # "mean_WC",
   "mean_AC"
   
 )
@@ -274,6 +283,37 @@ resultat_final <- test %>%
 # export
 st_write(resultat_final, "TGH_testnew.gpkg", delete_layer = TRUE)
 # str(resultat_final)
+
+
+
+saveRDS(modele_foret,
+        file = "modele_foret.rds")
+
+
+unique(resultat_final$Prediction)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+  
 # ----------------------------
 # 11. Corrélation entre variables
 # ----------------------------

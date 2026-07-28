@@ -4,6 +4,21 @@ library(ggtext)
 library(ggh4x)
 
 
+# library(MASS)
+library(dplyr)
+
+# # Détacher MASS
+# if ("package:MASS" %in% search()) {
+#   detach("package:MASS", unload = TRUE)
+# }
+# 
+# # Détacher dplyr
+# if ("package:dplyr" %in% search()) {
+#   detach("package:dplyr", unload = TRUE)
+# }
+
+
+
 "#2d2d2d"
 "#656565"
 "#b1b1b1"
@@ -13,21 +28,47 @@ library(ggh4x)
 "#0b5707"
 
 
+# palette_lits <- c(
+#   "Straight" = "#4988C4",
+#   "Sinuous" = "#1C4D8D",
+#   "Passive meandering" = "#807dba",
+#   "Alternate bars" = "#b3cde3",
+#   "Sinuous with bars" = "#629FAD",
+#   "Active meandering" = "#542788",
+#   "Braided" = "#e69f00",
+#   "Wandering" = "#b012d4",
+#   "Anastomosed" = "#b2df8a",
+#   "Anabranching" = "#33a02c",
+#   "Reservoir" = "#9e9e9e",
+#   "Intermittent" = "#363232",
+#   "NA" = "black"
+# )
+
+
+
 palette_lits <- c(
-  "Straight" = "#4988C4",         
-  "Sinuous" = "#1C4D8D",           
-  "Passive meandering" = "#807dba", 
-  "Alternate bars" = "#b3cde3",    
-  "Sinuous with bars" = "#629FAD",  
-  "Active meandering" = "#542788",  
-  "Braided" = "#e69f00",
-  "Wandering" = "#b012d4",
-  "Anastomosed" = "#b2df8a",
-  "Anabranching" = "#33a02c",
-  "Reservoir" = "#9e9e9e",
+  # Couleurs froides
+  "Straight" = "#4BB8FA",              # bleu
+  "Sinuous" = "#2C5EAD",               # bleu foncé
+  "Passive meandering" = "#121358",    # bleu clair
+  "Anastomosed" = "#3E7B27",           # vert froid
+  "Anabranching" = "#956d3e",          # vert foncé froid
+  "Sparse islands" = "#93DA97",          # vert moyen froid
+  
+  # Couleurs chaudes
+  "Straight with alternate bars" = "#E7D283",        # orange clair
+  "Sinuous with bars" = "#fcb429",     # orange-rouge
+  "Active meandering" = "#d96c0e",     # orange-rouge foncé
+  "Braided" = "#DD0303",               # orange
+  "Wandering" = "#7a1073",             # brun chaud
+
+  # Autres
+  "Reservoir" = "#9E9E9E",
   "Intermittent" = "#363232",
   "NA" = "black"
 )
+
+
 
 palette_conf <- c(
   "Straight confined"        = "#2F5D8A",
@@ -42,9 +83,9 @@ palette_conf <- c(
   "Passive meandering partly confined" = "#807dba",
   "Passive meandering unconfined"      = "#B7B5DC",
   
-  "Alternate bars confined"        = "#7F9FB8",
-  "Alternate bars partly confined" = "#b3cde3",
-  "Alternate bars unconfined"      = "#E3EEF7",
+  "Straight with alternate bars confined"        = "#7F9FB8",
+  "Straight with alternate bars confined" = "#b3cde3",
+  "Straight with alternate bars unconfined"      = "#E3EEF7",
   
   "Sinuous with bars confined"        = "#41707A",
   "Sinuous with bars partly confined" = "#629FAD",
@@ -90,9 +131,9 @@ ordre_conf <- c(
   "Anabranching partly confined",
   "Anabranching unconfined",
   
-  "Alternate bars confined",
-  "Alternate bars partly confined",
-  "Alternate bars unconfined",
+  "Straight with alternate bars confined",
+  "Straight with alternate bars partly confined",
+  "Straight with alternate bars unconfined",
   
   "Sinuous with bars confined",
   "Sinuous with bars partly confined",
@@ -128,14 +169,26 @@ ordre_meandering <- c(
 )
 
 
+# palette_meandering <- c(
+#   "Active – confined" = "#a20000",          # orange rouge (fort)
+#   "Active – partly confined" = "#D55E00",   # orange
+#   "Active – unconfined" = "#009E73",        # vert
+#   
+#   "Passive – confined" = "#f64541",         # 👈 rouge pâle (fix)
+#   "Passive – partly confined" = "#F6D55C",  # jaune doux
+#   "Passive – unconfined" = "#7FCDBB"        # vert clair
+# )
+
 palette_meandering <- c(
-  "Active – confined" = "#a20000",          # orange rouge (fort)
-  "Active – partly confined" = "#D55E00",   # orange
-  "Active – unconfined" = "#009E73",        # vert
+  # Active = couleurs chaudes
+  "Active – confined" = "#A50026",          # rouge foncé
+  "Active – partly confined" = "#F46D43",   # orange-rouge
+  "Active – unconfined" = "#FDB863",        # orange clair
   
-  "Passive – confined" = "#f64541",         # 👈 rouge pâle (fix)
-  "Passive – partly confined" = "#F6D55C",  # jaune doux
-  "Passive – unconfined" = "#7FCDBB"        # vert clair
+  # Passive = couleurs froides
+  "Passive – confined" = "#084081",         # bleu foncé
+  "Passive – partly confined" = "#2B8CBE",  # bleu moyen
+  "Passive – unconfined" = "#7BCCC4"        # bleu-vert clair
 )
 
 
@@ -143,13 +196,14 @@ ordre_lits <- c(
   "Straight",
   "Sinuous",
   "Passive meandering",
+  "Sparse islands",
   "Anastomosed",
-  "Alternate bars",
+  "Straight with alternate bars",
   "Sinuous with bars",
   "Active meandering",
   "Wandering",
-  "Braided",
   "Anabranching",
+  "Braided",
   "Reservoir",
   "Intermittent"
 )
@@ -158,7 +212,7 @@ palette_axe <- c(
   "Straight" = "#4988C4",
   "Sinuous" = "#1C4D8D",           
   "Passive meandering" = "#807dba", 
-  "Alternate bars" = "#b3cde3",    
+  "Straight with alternate bars" = "#b3cde3",    
   "Sinuous with bars" = "#629FAD", 
   "Active meandering" = "#542788",  
   "Braided" = "#e69f00",
@@ -226,22 +280,22 @@ ordre_landuse <- c(
 
 ordre_bassins <- c(
   "France",
-  "RMC (f)",
-  "Adour - Garonne (e)",
-  "Loire - Bretagne (d)",
-  "Seine - Normandie (c)",
-  "Rhin - Meuse (b)",
-  "Artois - Picardie (a)"
+  "Rhône - Mediterranean (f)",
+  "Garonne - Adour (e)",
+  "Loire (d)",
+  "Seine (c)",
+  "Rhine - Meuse (b)",
+  "Scheldt - Somme (a)"
 )
 
 labels_wrap <- c(
-  "RMC (f)" = "RMC (f)",
-  "Loire - Bretagne (d)" = "Loire -\nBretagne (d)",
-  "Seine - Normandie (c)" = "Seine -\nNormandie (c)",
-  "Adour - Garonne (e)" = "Adour -\nGaronne (e)",
-  "Rhin - Meuse (b)" = "Rhin -\nMeuse (b)",
-  "Artois - Picardie (a)" = "Artois -\nPicardie (a)",
-  "France" = "France"
+  "France" = "France",
+  "Rhône - Mediterranean (f)" = "Rhône -\nMediterranean (f)",
+  "Garonne - Adour (e)" = "Garonne -\nAdour (e)",
+  "Loire (d)" = "Loire (d)",
+  "Seine (c)" = "Seine (c)",
+  "Rhine - Meuse (b)" = "Rhine -\nMeuse (b)",
+  "Scheldt - Somme (a)" = "Scheldt -\nSomme (a)"
 )
 
 # ============================================
@@ -406,14 +460,29 @@ ggplot(df_plot) +
     size = 5
   ) +
   
+  # scale_fill_manual(
+  #   values = c(
+  #     "confined" = "#FFA02E",
+  #     "partly confined" = "#FFEF91",
+  #     "unconfined" = "#9AD872"
+  #   ),
+  #   name = "Confinement"  
+  # ) +
+  
   scale_fill_manual(
     values = c(
       "confined" = "#FFA02E",
       "partly confined" = "#FFEF91",
       "unconfined" = "#9AD872"
     ),
+    breaks = c(
+      "confined",
+      "partly confined",
+      "unconfined"
+    ),
+    na.value = "grey80",
     name = "Confinement"
-  ) +
+  )+
   
   scale_y_continuous(
     name = "River length (km)",
@@ -437,7 +506,7 @@ ggplot(df_plot) +
     axis.ticks = element_line(color = "black"),
     panel.grid.major.x = element_blank(),
     legend.position = "bottom",
-    plot.margin = ggplot2::margin(10, 150, 10, 10)
+    plot.margin = ggplot2::margin(10, 180, 10, 10)
   )
 
 
@@ -445,17 +514,17 @@ ggplot(df_plot) +
 # ============================================
 # comparaison classe par region fr 500x1000
 # ============================================
-df_facet <- resultat_final %>%
+df_facet <- resultat_final_filtre %>%
   filter(!is.na(Prediction_en), !is.na(gid_region)) %>%
   
   mutate(
     gid_bassin = case_when(
-      gid_region %in% c(31, 16, 11, 33, 26) ~ "RMC (f)",
-      gid_region %in% c(23, 30, 15, 27, 29) ~ "Loire - Bretagne (d)",
-      gid_region %in% c(22, 25, 20, 18) ~ "Seine - Normandie (c)",
-      gid_region %in% c(24, 21, 10, 14) ~ "Adour - Garonne (e)",
-      gid_region %in% c(28, 32) ~ "Rhin - Meuse (b)",
-      gid_region %in% c(19, 12) ~ "Artois - Picardie (a)",
+      gid_region %in% c(31, 16, 11, 33, 26) ~ "Rhône - Mediterranean (f)",
+      gid_region %in% c(23, 30, 15, 27, 29) ~ "Loire (d)",
+      gid_region %in% c(22, 25, 20, 18) ~ "Seine (c)",
+      gid_region %in% c(24, 21, 10, 14) ~ "Garonne - Adour (e)",
+      gid_region %in% c(28, 32) ~ "Rhine - Meuse (b)",
+      gid_region %in% c(19, 12) ~ "Scheldt - Somme (a)",
       TRUE ~ NA_character_
     )
   ) %>%
@@ -524,7 +593,7 @@ p1_base <- ggplot(df_plot, aes(x = km, y = gid_bassin, fill = Prediction_en)) +
     
     axis.text.y = element_text(
       # face = "bold",
-      size = 18
+      size = 22
       # margin = margin(r = 8)
     ),
     axis.text.x = element_text(
@@ -721,7 +790,7 @@ df_box <- resultat_conf %>%
   mutate(
     variable = recode(
       variable,
-      mean_Slope_talweg = "Talweg slope (%)",
+      mean_Slope_talweg = "Talweg slope (m/m)",
       measure = "Distance from source (km)",
       drainage_area = "Drainage area (km²)"
     ),
@@ -777,7 +846,7 @@ ggplot(df_box2, aes(x = Prediction_en, y = value)) +
   
   ggh4x::facetted_pos_scales(
     y = list(
-      variable %in% c("Talweg slope (%)", "Drainage area (km²)",
+      variable %in% c("Talweg slope (m/m)", "Drainage area (km²)",
                       "Distance from source (km)") ~ 
         scale_y_log10(labels = scales::label_number())
     )
@@ -786,7 +855,8 @@ ggplot(df_box2, aes(x = Prediction_en, y = value)) +
   labs(x = NULL, y = NULL) +
   
   theme_classic(base_size = 11) +
-  
+  # scale_x_discrete(expand = expansion(add = 0.3))+
+  coord_cartesian(clip = "off")+
 
   theme(
     strip.placement = "outside",
@@ -800,6 +870,7 @@ ggplot(df_box2, aes(x = Prediction_en, y = value)) +
     panel.grid.minor = element_blank(),
     
     panel.spacing = unit(1, "lines"),
+    plot.margin = ggplot2::margin(10, 20, 10, 10),
     
     legend.position = "none"
   )
@@ -807,12 +878,12 @@ ggplot(df_box2, aes(x = Prediction_en, y = value)) +
 # ============================================
 # circle transition planform France
 # ============================================
-tttt <- resultat_final %>%
+tttt <- resultat_final_filtre %>%
   st_drop_geometry() %>%
   # filter(gid_region %in% c(31, 16, 11, 33, 26)) %>%
   # filter(gid_region %in% c(11)) %>%
   filter(!Prediction_en %in% c("Reservoir","Intermittent", NA),
-         !(Prediction_en == "Braided" & !gid_region %in% c(31, 16, 11, 33, 26))
+         Prediction_en != "Braided" | gid_region %in% c(16, 11, 33, 26)
   ) %>%
   select(axis, ID_segment, Prediction_en) %>%
   arrange(axis, desc(ID_segment))
@@ -852,7 +923,7 @@ link_cols <- sapply(1:nrow(df_final), function(i) {
   
   # 3. Application de la transparence selon ton critère d'épaisseur
   # Si la flèche est fine (ex: < 5% au départ ET à l'arrivée), on l'invisibilise
-  if(df_final$prop_out[i] < 0.1 & df_final$prop_in[i] < 0.1) {
+  if(df_final$prop_out[i] < 0.15 & df_final$prop_in[i] < 0.15) {
     return(add_transparency(base_color, 0.9)) # Quasi invisible
   } else {
     return(add_transparency(base_color, 0.4))  # Transparence standard
@@ -863,10 +934,15 @@ link_cols <- sapply(1:nrow(df_final), function(i) {
 all_sectors <- unique(c(df_final$from, df_final$to))
 xmax <- setNames(rep(1, length(all_sectors)), all_sectors)
 
-png("chord_final_fixed_colors.png", width = 2000, height = 2000, res = 300)
+svg(
+  "Chord_fixed2.svg",
+  width = 8.7,
+  height = 8.7
+)
 
 circos.clear()
-circos.par(start.degree = 90, gap.degree = 6, track.margin = c(0.01, 0.01))
+circos.par(start.degree = 90, gap.degree = 6, track.margin = c(0.01, 0.01)
+           )
 
 chordDiagram(df_final,
              grid.col = palette_lits, 
@@ -886,6 +962,397 @@ dev.off()
 circos.clear()
 
 
+
+# ============================================
+# circle transition upalnds
+# ============================================
+tttt <- resultat_conf %>%
+  st_drop_geometry() %>%
+  filter(
+    !Prediction_en %in% c(
+      "Reservoir",
+      "Intermittent",
+      NA
+    ),
+    Prediction_en != "Braided" |
+      gid_region %in% c(
+        16,11,33,26
+      )
+  ) %>%
+  filter(
+    Prediction_en %in% c(
+      "Straight",
+      "Sinuous",
+      "Straight with alternate bars",
+      "Sinuous with bars",
+      "Active meandering",
+      "Wandering",
+      "Anabranching",
+      "Braided"
+    )
+  ) %>%
+  arrange(
+    axis,
+    desc(ID_segment)
+  ) %>%
+  group_by(axis) %>%
+  mutate(
+    
+    Prediction_tmp = replace_na(
+      Prediction_en,
+      "__NA__"
+    ),
+    
+    ID_style = c(
+      1,
+      cumsum(
+        Prediction_tmp[-1] !=
+          Prediction_tmp[-n()]
+      ) + 1
+    )
+    
+  ) %>%
+  ungroup()
+
+# Regroupement des segments d'un même style
+tttt <- tttt %>%
+  group_by(
+    axis,
+    ID_style
+  ) %>%
+  summarise(
+    
+    Prediction_en = first(Prediction_en),
+    
+    conf_simple = names(
+      which.max(
+        table(conf_simple)
+      )
+    ),
+    
+    ID_segment = first(ID_segment),
+    
+    .groups = "drop"
+    
+  ) %>%
+  arrange(
+    axis,
+    desc(ID_segment)
+  )
+
+# Abréviations du confinement
+conf_lab <- c(
+  "confined" = "C",
+  "partly confined" = "PC",
+  "unconfined" = "UC"
+)
+
+# Création des secteurs
+tttt <- tttt %>%
+  mutate(
+    secteur = paste0(
+      Prediction_en,
+      "\n",
+      conf_lab[conf_simple]
+    )
+  )
+
+# Transitions
+data_counts <- tttt %>%
+  group_by(axis) %>%
+  arrange(
+    desc(ID_segment),
+    .by_group = TRUE
+  ) %>%
+  mutate(
+    secteur_to = lead(secteur)
+  ) %>%
+  ungroup() %>%
+  filter(!is.na(secteur_to)) %>%
+  rename(
+    secteur_from = secteur
+  ) %>%
+  filter(
+    secteur_from != secteur_to
+  ) %>%
+  count(
+    secteur_from,
+    secteur_to,
+    name = "n"
+  )
+
+# Proportions
+total_sortant <- data_counts %>%
+  group_by(secteur_from) %>%
+  summarise(
+    sum_out = sum(n),
+    .groups = "drop"
+  )
+
+total_entrant <- data_counts %>%
+  group_by(secteur_to) %>%
+  summarise(
+    sum_in = sum(n),
+    .groups = "drop"
+  )
+
+df_final <- data_counts %>%
+  left_join(
+    total_sortant,
+    by = "secteur_from"
+  ) %>%
+  left_join(
+    total_entrant,
+    by = "secteur_to"
+  ) %>%
+  mutate(
+    prop_out = n / sum_out,
+    prop_in = n / sum_in
+  )
+
+# Ordre des styles
+styles <- c(
+  "Straight",
+  "Straight with alternate bars",
+  "Sinuous",
+  "Sinuous with bars",
+  "Active meandering",
+  "Wandering",
+  "Anabranching",
+  "Braided"
+)
+
+confs <- c(
+  "C",
+  "PC",
+  "UC"
+)
+
+ordre_secteurs <- unlist(
+  lapply(
+    styles,
+    function(st){
+      paste(
+        st,
+        confs,
+        sep = "\n"
+      )
+    }
+  ),
+  use.names = FALSE
+)
+
+# Ne conserver que les secteurs présents
+all_sectors <- ordre_secteurs[
+  ordre_secteurs %in%
+    unique(
+      c(
+        df_final$secteur_from,
+        df_final$secteur_to
+      )
+    )
+]
+
+# Palette
+palette24 <- c()
+
+for(st in styles){
+  
+  cols <- rep(
+    palette_lits[st],
+    3
+  )
+  
+  names(cols) <- paste(
+    st,
+    confs,
+    sep = "\n"
+  )
+  
+  palette24 <- c(
+    palette24,
+    cols
+  )
+  
+}
+
+palette24_use <- palette24[
+  all_sectors
+]
+
+# xmax
+xmax <- setNames(
+  rep(
+    1,
+    length(all_sectors)
+  ),
+  all_sectors
+)
+
+# Espacement entre secteurs
+style_nom <- sub(
+  "\n.*",
+  "",
+  all_sectors
+)
+
+gap.after <- rep(
+  1,
+  length(all_sectors)
+)
+
+if(length(style_nom) > 1){
+  
+  for(i in seq_len(length(style_nom)-1)){
+    
+    if(style_nom[i] != style_nom[i+1]){
+      
+      gap.after[i] <- 8
+      
+    }
+    
+  }
+  
+}
+
+gap.after[length(gap.after)] <- 12
+
+# Couleurs des liens
+link_cols <- sapply(
+  seq_len(nrow(df_final)),
+  function(i){
+    
+    style_depart <- sub(
+      "\n.*",
+      "",
+      df_final$secteur_from[i]
+    )
+    
+    base_color <- palette_lits[style_depart]
+    
+    if(df_final$prop_out[i] < 0.15 &
+       df_final$prop_in[i] < 0.15){
+      
+      add_transparency(
+        base_color,
+        0.90
+      )
+      
+    }else{
+      
+      add_transparency(
+        base_color,
+        0.40
+      )
+      
+    }
+    
+  }
+)
+
+#Diagramme chord
+svg(
+  "Chord_24_secteurs2.svg",
+  width = 8.7,
+  height = 8.7
+)
+
+# png(
+#   "Chord_24_secteurs.png",
+#   width = 8.7,
+#   height = 8.7,
+#   units = "in",
+#   res = 300
+# )
+
+circos.clear()
+
+circos.par(
+  start.degree = 90,
+  gap.after = gap.after,
+  track.margin = c(0.01, 0.01)
+)
+
+chordDiagram(
+  x = df_final %>%
+    dplyr::select(
+      secteur_from,
+      secteur_to,
+      prop_out
+    ),
+  order = all_sectors,
+  grid.col = palette24_use,
+  col = link_cols,
+  xmax = xmax,
+  directional = 1,
+  direction.type = c(
+    "diffHeight",
+    "arrows"
+  ),
+  link.arr.type = "big.arrow",
+  diffHeight = mm_h(2),
+  h.ratio = 0.75,
+  link.sort = TRUE,
+  link.border = NA,
+  annotationTrack = c(
+    "name",
+    "grid",
+    "axis"
+  ),
+  annotationTrackHeight = c(
+    0.05,
+    0.015,
+    0.015
+  ),
+  transparency = 0
+)
+
+dev.off()
+
+circos.clear()
+
+
+
+svg("Chord_combined.svg",
+    width = 17.4,
+    height = 8.7)
+
+par(mfrow = c(1, 2), mar = c(1, 1, 1, 1))
+
+# -----------------
+# Diagramme 1
+# -----------------
+circos.clear()
+circos.par(
+  start.degree = 90,
+  gap.degree = 6,
+  track.margin = c(0.01, 0.01)
+)
+
+chordDiagram(
+  ...
+)
+
+# ============================================
+# Surrogate tree à partir du jeu test du RF
+# ============================================
+# -----------------
+# Diagramme 2
+# -----------------
+circos.clear()
+circos.par(
+  start.degree = 90,
+  gap.after = gap.after,
+  track.margin = c(0.01, 0.01)
+)
+
+chordDiagram(
+  ...
+)
+
+dev.off()
+circos.clear()
+
 # ============================================
 # Surrogate tree à partir du jeu test du RF
 # ============================================
@@ -896,7 +1363,7 @@ surrogate_train <- train %>%
     rf_pred = dplyr::recode(
       rf_pred,
       "rectiligne"      = "Straight",
-      "rectiligne bars" = "Alternate bars",
+      "rectiligne bars" = "Straight with alternate bars",
       "sinueux"         = "Sinuous",
       "sinueux bars"    = "Sinuous with bars",
       "meandre actif"   = "Active meandering",
@@ -906,6 +1373,7 @@ surrogate_train <- train %>%
       "anastomose"      = "Anastomosed",
       "anabranche"      = "Anabranching",
       "reservoir"       = "Reservoir",
+      "ile eparses"      = "Sparse islands",
       "intermittent"    = "Intermittent"
     )
   ) %>%
@@ -915,9 +1383,9 @@ surrogate_train <- train %>%
     "Water index" = idx_water_segment,
     "Sinuosity index" = Sinuosity_meander_2,
     "Normalized active channel width" = mean_ACW_star,
-    "Vegetated islands" = iles_veget,
+    "Vegetated islands frequency" = iles_veget,
     "Water channel width" = mean_WC,
-    "Multi-threading index" = multi_chenaux_index,
+    "Multi-channel index" = multi_chenaux_index,
     "Delta water channel" = step_WC
   )
 
@@ -928,7 +1396,7 @@ surrogate_test <- testset %>%
     rf_pred = dplyr::recode(
       rf_pred,
       "rectiligne"      = "Straight",
-      "rectiligne bars" = "Alternate bars",
+      "rectiligne bars" = "Straight with alternate bars",
       "sinueux"         = "Sinuous",
       "sinueux bars"    = "Sinuous with bars",
       "meandre actif"   = "Active meandering",
@@ -937,7 +1405,8 @@ surrogate_test <- testset %>%
       "divagant"        = "Wandering",
       "anastomose"      = "Anastomosed",
       "anabranche"      = "Anabranching",
-      "retenue"         = "Reservoir",
+      "reservoir"         = "Reservoir",
+      "ile eparses"      = "Sparse islands",
       "intermittent"    = "Intermittent"
     )
   ) %>%
@@ -946,21 +1415,32 @@ surrogate_test <- testset %>%
     "Water index" = idx_water_segment,
     "Sinuosity index" = Sinuosity_meander_2,
     "Normalized active channel width" = mean_ACW_star,
-    "Vegetated islands" = iles_veget,
+    "Vegetated islands frequency" = iles_veget,
     "Water channel width" = mean_WC,
-    "Multi-threading index" =  multi_chenaux_index,
+    "Multi-channel index" =  multi_chenaux_index,
     "Delta water channel" = step_WC
   )
 
 # entraînement surrogate
+# surrogate_tree_1 <- rpart(
+#   rf_pred ~ .,  # 👉 on apprend le RF
+#   data = surrogate_train,
+#   method = "class",
+#   control = rpart.control(
+#     maxdepth = 7,     # 👉 arbre simple = interprétable
+#     minsplit = 30,
+#     cp = 0.001
+#   )
+# )
+
 surrogate_tree_1 <- rpart(
   rf_pred ~ .,  # 👉 on apprend le RF
   data = surrogate_train,
   method = "class",
   control = rpart.control(
-    maxdepth = 7,     # 👉 arbre simple = interprétable
-    minsplit = 30,
-    cp = 0.001
+    maxdepth = 5,     # 👉 arbre simple = interprétable
+    minsplit = 25,
+    cp = 0.005
   )
 )
 
@@ -990,23 +1470,32 @@ rpart.plot(
 
 dev.off()
 
-
-# prédiction surrogate sur RF du test
 surrogate_pred_test <- predict(
   surrogate_tree_1,
-  surrogate_test,
+  newdata = surrogate_test,
   type = "class"
 )
 
-conf_fidelity_1 <- confusionMatrix(
-  surrogate_pred_test,
-  surrogate_test$rf_pred
+# Niveaux communs à utiliser
+all_levels <- union(
+  levels(factor(surrogate_pred_test)),
+  levels(factor(surrogate_test$rf_pred))
 )
 
-# conf_fidelity_1 <- confusionMatrix(
-#   factor(surrogate_pred_test),
-#   factor(surrogate_test$rf_pred)
-# )
+surrogate_pred_test <- factor(
+  surrogate_pred_test,
+  levels = all_levels
+)
+
+rf_pred_test <- factor(
+  surrogate_test$rf_pred,
+  levels = all_levels
+)
+
+conf_fidelity_1 <- confusionMatrix(
+  data = surrogate_pred_test,
+  reference = rf_pred_test
+)
 
 print(conf_fidelity_1)
 
@@ -1016,288 +1505,164 @@ cat("Surrogate 1 - Fidelity vs RF:",
 
 
 # ============================
-# annexe : matrice de confusion + MDA
+# matrice de confusion 
 # ============================
-
-
-# Dictionnaire de renommage
+# Dictionnaire FR -> EN
 labels_map <- c(
-  "rectiligne"        = "Straight",
-  "sinueux"           = "Sinuous",
-  "meandre passif"    = "Passive meandering",
-  "rectiligne bars"   = "Alternate bars",
-  "sinueux ba"        = "Sinuous with bars",
-  "meandre actif"     = "Active meandering",
-  "divagant"          = "Wandering",
-  "tresse"            = "Braided",
-  "anastomose"        = "Anastomosed",
-  "anabranchement"    = "Anabranching",
-  "retenue"           = "Reservoir",
-  "intermittent"      = "Intermittent"
+  "rectiligne" = "Straight",
+  "rectiligne bars" = "Straight with alternate bars",
+  "sinueux" = "Sinuous",
+  "sinueux bars" = "Sinuous with bars",
+  "meandre actif" = "Active meandering",
+  "meandre passif" = "Passive meandering",
+  "divagant" = "Wandering",
+  "tresse" = "Braided",
+  "anastomose" = "Anastomosed",
+  "anabranche" = "Anabranching",
+  "ile eparses" = "Sparse islands",
+  "reservoir" = "Reservoir",
+  "intermittent" = "Intermittent"
 )
+
+# Matrice de confusion
+conf_df <- as.data.frame(confusion$table)
+
+colnames(conf_df) <- c("Reference", "Prediction", "Freq")
 
 conf_df <- conf_df %>%
   mutate(
-    Reference = recode(Reference, !!!labels_map),
-    Prediction = recode(Prediction, !!!labels_map)
-  )
-
-conf_df <- conf_df %>%
+    Reference = recode(as.character(Reference), !!!labels_map),
+    Prediction = recode(as.character(Prediction), !!!labels_map)
+  ) %>%
   group_by(Reference) %>%
-  mutate(Percent = Freq / sum(Freq))
+  mutate(
+    Percent = 100 * Freq / sum(Freq),
+    text_color = ifelse(Percent > 50, "white", "black")
+  ) %>%
+  ungroup()
 
-# CONFUSION MATRIX PLOT
-conf_df <- conf_df %>%
-  mutate(text_color = ifelse(Percent > 0.5, "white", "black"))
+# ordre des classes
+ordre <- c(
+  "Straight",
+  "Straight with alternate bars",
+  "Sinuous",
+  "Sinuous with bars",
+  "Passive meandering",
+  "Active meandering",
+  "Wandering",
+  "Braided",
+  "Anabranching",
+  "Anastomosed",
+  "Sparse islands",
+  "Reservoir",
+  "Intermittent"
+)
 
-plot_conf <- ggplot(conf_df, aes(x = Reference, y = Prediction, fill = Percent)) +
+conf_df$Reference <- factor(conf_df$Reference, levels = ordre)
+conf_df$Prediction <- factor(conf_df$Prediction, levels = ordre)
+
+# Figure
+ggplot(conf_df,
+       aes(x = Reference,
+           y = Prediction,
+           fill = Percent)) +
   
-  geom_tile(color = "white", linewidth = 0.4) +
+  geom_tile(
+    colour = "white",
+    linewidth = 0.5
+  ) +
   
-  geom_text(aes(label = Freq, color = text_color),
-            size = 4, fontface = "bold") +
+  geom_text(
+    aes(label = Freq,
+        colour = text_color),
+    size = 4,
+    fontface = "bold"
+  ) +
   
-  scale_color_identity() +
+  scale_colour_identity() +
   
   scale_fill_gradient(
     low = "grey95",
     high = "grey20",
+    limits = c(0, 100),
     guide = "none"
   ) +
+  
+  coord_equal() +
   
   labs(
     x = "Observed class",
     y = "Predicted class"
   ) +
   
-  coord_equal() +
+  theme_classic(base_size = 13) +
   
-  theme_minimal(base_size = 13) +
   theme(
     panel.grid = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.margin = ggplot2::margin(10, 10, 10, 10)
-  )
-
-plot_conf
-
-dev.off()  # Ferme la fenêtre de plot pour éviter les problèmes d'affichage dans RStudio
-
-# IMPORTANCE AVEC INCERTITUDE (BOOTSTRAP) type = 1 (MDA)
-set.seed(123)
-n_iter <- 30
-
-all_importance <- list()
-
-for(i in 1:n_iter){
-  
-  index <- createDataPartition(test_clean$label, p = 0.7, list = FALSE)
-  train_i <- test_clean[index, ]
-  
-  model_i <- randomForest(
-    label ~ .,
-    data = train_i,
-    importance = TRUE,
-    ntree = 300
-  )
-  
-  imp_i <- importance(model_i, type = 1)
-  
-  imp_df_i <- data.frame(
-    Variable = rownames(imp_i),
-    Importance = imp_i[,1],
-    Iteration = i
-  )
-  
-  all_importance[[i]] <- imp_df_i
-}
-
-imp_all <- bind_rows(all_importance)
-
-# Moyenne + SD
-imp_summary <- imp_all %>%
-  group_by(Variable) %>%
-  summarise(
-    Mean = mean(Importance),
-    SD = sd(Importance),
-    .groups = "drop"
-  ) %>%
-  arrange(Mean)
-
-var_map <- c(
-  "Sinuosity_meander_2" = "Sinuosity index",
-  "mean_idx_water" = "Water index",
-  "mean_ACW_star" = "ACW*",
-  # "mean_AC" = "AC",
-  "mean_WC" = "Water Channel width",
-  "multi_chenaux_index" = "Multi-channel index",
-  "iles_veget" = "Vegetated islands occurence",
-  "step_AC_na" = "Active channel delta"
-)
-
-imp_summary <- imp_summary %>%
-  mutate(
-    Variable = recode(Variable, !!!var_map)
-  )
-
-plot_imp <- ggplot(imp_summary, aes(x = Mean, y = reorder(Variable, Mean))) +
-  
-  geom_point(size = 2.5, color = "black") +
-  
-  geom_errorbarh(
-    aes(xmin = Mean - SD, xmax = Mean + SD),
-    height = 0.15,
-    color = "black",
-    linewidth = 0.5
-  ) +
-  
-  scale_y_discrete(position = "right")+
-  
-  
-  labs(
-    x = "Mean Decrease in Accuracy",
-    y = NULL
-  ) +
-  
-  theme_minimal(base_size = 13) +
-  theme(
-    axis.text.y = element_text(
-      face = "bold",
-      hjust = 0
-    ),    
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor = element_blank()
-  )
-
-plot_imp
-
-
-# VARIABLE IMPORTANCE type = 2 (MDI) 
-set.seed(123)
-n_iter <- 30
-
-all_importance_gini <- list()
-
-for(i in 1:n_iter){
-  
-  index <- createDataPartition(test_clean$label, p = 0.7, list = FALSE)
-  train_i <- test_clean[index, ]
-  
-  model_i <- randomForest(
-    label ~ .,
-    data = train_i,
-    importance = TRUE,
-    ntree = 300
-  )
-  
-  imp_i <- importance(model_i, type = 2)
-  
-  imp_df_i <- data.frame(
-    Variable = rownames(imp_i),
-    Importance = imp_i[,"MeanDecreaseGini"],
-    Iteration = i
-  )
-  
-  all_importance_gini[[i]] <- imp_df_i
-}
-
-imp_all_gini <- bind_rows(all_importance_gini)
-
-imp_summary_gini <- imp_all_gini %>%
-  group_by(Variable) %>%
-  summarise(
-    Mean = mean(Importance),
-    SD = sd(Importance),
-    .groups = "drop"
-  ) %>%
-  arrange(Mean)
-
-var_map <- c(
-  "Sinuosity_meander_2" = "Sinuosity index",
-  "mean_idx_water" = "Water index",
-  "mean_ACW_star" = "ACW*",
-  "mean_WC" = "Water Channel width",
-  "multi_chenaux_index" = "Multi-channel index",
-  "iles_veget" = "Vegetated islands occurence",
-  "step_AC_na" = "Active channel delta"
-)
-
-imp_summary_gini <- imp_summary_gini %>%
-  mutate(Variable = recode(Variable, !!!var_map))
-
-plot_imp_gini <- ggplot(imp_summary_gini, aes(x = Mean, y = reorder(Variable, Mean))) +
-  geom_point(size = 2.5, color = "black") +
-  geom_errorbarh(
-    aes(xmin = Mean - SD, xmax = Mean + SD),
-    height = 0.15,
-    color = "black",
-    linewidth = 0.5
-  ) +
-  
-  scale_y_discrete(position = "right")+
-
-  labs(
-    x = "Mean Decrease in Gini",
-    y = NULL
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    axis.text.y = element_text(
-      face = "bold",
-      hjust = 0
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1
     ),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor = element_blank()
-    
+    axis.text = element_text(colour = "black"),
+    axis.title = element_text(size = 14)
   )
-
-plot_imp_gini
-
-
-# combinaison 1000 x750
-
-final_plot <- plot_conf + (plot_imp / plot_imp_gini) +
-  plot_layout(widths = c(2, 1)) +
-  plot_annotation(tag_levels = "A")
-
-final_plot
-
 
 
 
 # ============================================
-# nuage de point pente vs ACW 1000x750
+# nuage de point pente vs ACW 800x500
 # ============================================
 df_nuage <- resultat_conf %>%
   filter(Prediction_en %in% c("Braided", "Wandering",
-                              "Passive meandering",
+                              # "Passive meandering",
                               # "Alternate bars",
-                              "Sinuous with bars",
-                              "Anabranching",
+                              # "Sinuous with bars",
+                              # "Anabranching",
                               # "Anastomosed",
                               "Active meandering"
                               ),
-         !(Prediction_en == "Braided" & !gid_region %in% c(31, 16, 11, 33, 26)),
+         !(Prediction_en == "Braided" & !gid_region %in% c(16, 11, 33, 26)),
+         mean_AC > 5,
          conf_simple %in% c("unconfined")
          ) %>%
   mutate(drainage_area = drainage_area,
     drainage_area = ifelse(drainage_area < 1, 1, drainage_area))
 
+df_nuage <- df_nuage %>%
+  mutate(
+    Prediction_en = factor(
+      Prediction_en,
+      levels = c(
+        "Braided",
+        "Wandering",
+        "Active meandering"
+        # "Anabranching"
+      )
+    )
+  )
+
+table(df_nuage$Prediction_en)
 # st_write(df_nuage, "df_nuage1.gpkg")
 
 ggplot(df_nuage, aes(x = drainage_area, y = mean_AC, color = Prediction_en)) +
+  # geom_smooth(
+  #   method = "lm",
+  #   se = FALSE,
+  #   linewidth = 1.2
+  # ) +
+  # 
+  geom_point(
+    size = 1.8,
+    alpha = 0.5,
+    stroke = 0
+  ) +
   
   # geom_point(
-  #   size = 1.8,
-  #   alpha = 0.5,
+  #   size = 1,
+  #   alpha = 0.25,
   #   stroke = 0
-  # ) +
-  
-  geom_point(
-    size = 1,
-    alpha = 0.25,
-    stroke = 0
-  )+
+  # )+
   
   # # 👉 Tendance (très important pour Nature)
   # geom_smooth(
@@ -1316,16 +1681,16 @@ ggplot(df_nuage, aes(x = drainage_area, y = mean_AC, color = Prediction_en)) +
     breaks = scales::breaks_log(n = 5),
     labels = scales::label_number(accuracy = 1)
   )+
-  
+
   scale_color_manual(values = c(
-    "Braided" = "#e69f00",
-    "Wandering" = "#b012d4",
-    "Active meandering" = "#080867",
-    "Passive meandering" = "#009e73",
-    "Anabranching" = "#56b4e9",
-    "Anastomosed" = "#d55e00",
-    "Alternate bars" = "#0072b2",
-    "Sinuous with bars" = "#cc79a7"
+    "Braided" = "#FFEB00",
+    "Wandering" = "#FADA7A",
+    "Active meandering" = "#5EABD6",
+    # "Passive meandering" = "#009e73",
+    "Anabranching" = "#113F67"
+    # "Anastomosed" = "#93DA97",
+    # "Alternate bars" = "#E7D283",
+    # "Sinuous with bars" = "#fcb429"
   )) +
  
   # 👉 Labels propres (unités !)
@@ -1351,46 +1716,216 @@ ggplot(df_nuage, aes(x = drainage_area, y = mean_AC, color = Prediction_en)) +
 
 
 
+# ============================================
+# nuage de point pente vs ACW 800x600 avec ligne frontiere
+# ============================================
+library(MASS)
+## Fonction pour une frontière LDA
+lda_line <- function(data, class1, class2){
+  
+  df <- data %>%
+    filter(Prediction_en %in% c(class1, class2)) %>%
+    mutate(
+      groupe = factor(Prediction_en),
+      logA = log10(drainage_area),
+      logW = log10(mean_AC)
+    )
+  
+  fit <- lda(groupe ~ logA + logW, data = df)
+  
+  w <- as.numeric(fit$scaling)
+  
+  mu1 <- as.numeric(fit$means[1, ])
+  mu2 <- as.numeric(fit$means[2, ])
+  
+  midpoint <- (mu1 + mu2) / 2
+  
+  cst <- sum(w * midpoint)
+  
+  x <- seq(min(df$logA),
+           max(df$logA),
+           length.out = 300)
+  
+  y <- (cst - w[1] * x) / w[2]
+  
+  data.frame(
+    drainage_area = 10^x,
+    mean_AC = 10^y,
+    comparaison = paste(class1, "vs", class2)
+  )
+}
 
+## Calcul des 3 frontières
+droites <- bind_rows(
+  lda_line(df_nuage, "Braided", "Wandering"),
+  lda_line(df_nuage, "Wandering", "Active meandering")
+  # lda_line(df_nuage, "Braided", "Anabranching")
+)
 
-
-
-
-df_resume <- resultat_conf %>%
-  filter(
-    Prediction_en %in% c("Braided", "Wandering", "Active meandering",
-                         "Passive meandering"),
-    conf_simple %in% c("unconfined")
-  ) %>%
-  mutate(drainage_area = drainage_area / 1000) %>%
-  group_by(Prediction_en) %>%
-  summarise(
-    mean_x = mean(drainage_area, na.rm = TRUE),
-    sd_x   = sd(drainage_area, na.rm = TRUE),
-    mean_y = mean(mean_AC, na.rm = TRUE),
-    sd_y   = sd(mean_AC, na.rm = TRUE),
-    .groups = "drop"
+## Graphique
+ggplot(df_nuage,
+       aes(x = drainage_area,
+           y = mean_AC,
+           colour = Prediction_en)) +
+  
+  geom_point(
+    size = 1.8,
+    alpha = 0.6,
+    stroke = 0
+  ) +
+  
+  geom_line(
+    data = droites,
+    aes(x = drainage_area,
+        y = mean_AC,
+        linetype = comparaison),
+    inherit.aes = FALSE,
+    colour = "black",
+    linewidth = 0.8
+  ) +
+  
+  scale_x_log10(
+    breaks = scales::breaks_log(n = 5),
+    labels = scales::label_number(accuracy = 1)
+  ) +
+  
+  scale_y_log10(
+    breaks = scales::breaks_log(n = 5),
+    labels = scales::label_number(accuracy = 1)
+  ) +
+  
+  scale_color_manual(values = c(
+    "Braided" = "#FFEB00",
+    "Wandering" = "#FFCB61",
+    "Active meandering" = "#799EFF",
+    "Anabranching" = "#113F67"
+  )) +
+  
+  scale_linetype_manual(values = c(
+    "Braided vs Wandering" = "solid",
+    "Wandering vs Active meandering" = "dashed"
+    # "Braided vs Anabranching" = "dotdash"
+  )) +
+  
+  labs(
+    x = "Drainage area (km²)",
+    y = "Active channel width (m)",
+    colour = NULL,
+    linetype = ""
+  ) +
+  
+  guides(
+    colour = guide_legend(nrow = 3, byrow = TRUE),
+    linetype = guide_legend(nrow = 2, byrow = TRUE)
+  ) +
+  
+  theme_classic(base_size = 15) +
+  
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.box = "horizontal",
+    legend.text = element_text(size = 12),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(size = 18),
+    panel.grid.major = element_line(color = "grey90", linewidth = 0.3),
+    panel.grid.minor = element_blank()
   )
 
-ggplot(df_resume, aes(x = mean_x, y = mean_y, color = Prediction_en)) +
-  geom_errorbarh(aes(xmin = mean_x - sd_x, xmax = mean_x + sd_x),
-                 height = 0) +
-  geom_errorbar(aes(ymin = mean_y - sd_y, ymax = mean_y + sd_y),
-                width = 0) +
-  geom_point(size = 3)
 
 
-
+# ============================================
+# nuage de point pente vs braided vegeatted et non 800x500
+# ============================================
+# # Détacher MASS
+# if ("package:MASS" %in% search()) {
+#   detach("package:MASS", unload = TRUE)
+# }
+# 
+# # Détacher dplyr
+# if ("package:dplyr" %in% search()) {
+#   detach("package:dplyr", unload = TRUE)
+# }
+library(dplyr)
 
 df_nuage <- resultat_conf %>%
-  filter(gid_region %in% c(31, 16, 11, 33, 26))
+  filter(
+    Prediction_en == "Braided",
+    gid_region %in% c(16, 11, 33, 26)
+  ) %>%
+  mutate(
+    Vegetated_islands = ifelse(
+      iles_veget > 0.1,
+      "Present",
+      "Absent"
+    )
+  )
+
+vars <- c(
+  "mean_Slope_talweg",
+  "mean_ACW_star"
+)
+
+var_labels <- c(
+  mean_Slope_talweg = "Talweg slope (m/m)",
+  mean_ACW_star = "Normalized active channel width (W*)"
+)
+
+df_long <- df_nuage %>%
+  select(Vegetated_islands, all_of(vars)) %>%
+  pivot_longer(
+    cols = all_of(vars),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = recode(variable, !!!var_labels)
+  )
+
+ggplot(df_long,
+       aes(x = Vegetated_islands,
+           y = value)) +
   
-ggplot(df_nuage, aes(x = drainage_area/1000, y = mean_AC, color = Prediction_en)) +
-  geom_point(alpha = 0.6) 
-
-
-
-
-
-
+  geom_boxplot(
+    width = 0.5,
+    outlier.shape = NA,
+    linewidth = 0.4
+  ) +
+  
+  geom_jitter(
+    width = 0.15,
+    alpha = 0.35,
+    size = 1
+  ) +
+  
+  scale_y_log10(
+    breaks = scales::breaks_log(n = 5),
+    labels = scales::label_number()
+  ) +
+  
+  facet_wrap(
+    ~variable,
+    scales = "free_y",
+    nrow = 1
+  ) +
+  
+  labs(
+    x = "Vegetated islands",
+    y = NULL
+  ) +
+  
+  theme_bw(base_size = 12) +
+  
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    panel.grid = element_blank(),
+    axis.title.x = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    panel.border = element_rect(
+      colour = "black",
+      fill = NA,
+      linewidth = 0.5
+    )
+  )
 

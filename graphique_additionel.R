@@ -1508,3 +1508,658 @@ ggplot(df_nuage, aes(x = drainage_area, y = mean_Slope_talweg, color = Predictio
 
 
 
+
+
+# ============================================
+df_box <- resultat_conf %>%
+  st_drop_geometry() %>%
+  filter(    
+    Prediction_en != "Reservoir",
+    !is.na(Prediction),
+    Prediction!= "autre multi",
+    Prediction_en != "Intermittent",
+    !(Prediction_en == "Braided" & !gid_region %in% c(31, 16, 11, 33, 26))
+  ) %>%
+  filter(!is.na(Prediction_en)) %>%
+  mutate(
+    mean_Slope_talweg = ifelse(mean_Slope_talweg < 0.0001, 0.0001, mean_Slope_talweg),
+    drainage_area = ifelse(drainage_area < 1, 1, drainage_area),
+    # measure = measure,
+    # distance depuis la source
+  ) %>%
+  group_by(axis) %>%
+  mutate( 
+    longueur_totale = sum(longueur_data, na.rm = TRUE),
+    measure_inverse = (longueur_totale - measure) ,
+    measure_max = max(measure, na.rm = TRUE) - measure, 
+    measure = measure_max / 1000
+  ) %>%
+  ungroup() %>%
+  # filter(axis == "2000784404") %>%
+  # select(axis, measure, measure_inverse, measure_max,longueur_data)
+  
+  select(Prediction_en, conf_simple,
+         mean_Slope_talweg, drainage_area, measure) %>%
+  pivot_longer(
+    cols = c(mean_Slope_talweg, measure, drainage_area),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = recode(
+      variable,
+      mean_Slope_talweg = "Talweg slope (%)",
+      measure = "Distance from source (km)",
+      drainage_area = "Drainage area (km²)"
+    ),
+    conf_simple = recode(conf_simple,
+                         "confined" = "Confined",
+                         "partly confined" = "Partly confined",
+                         "unconfined" = "Unconfined",
+    ),
+    Prediction_en = factor(Prediction_en, levels = ordre_lits),
+    conf_simple = factor(conf_simple)   # important
+  )
+
+# 👉 calcul distance à la médiane (par groupe)
+df_box2 <- df_box %>%
+  group_by(Prediction_en, conf_simple, variable) %>%
+  mutate(
+    med = median(value, na.rm = TRUE),
+    dist_med = abs(value - med),
+    alpha_val = scales::rescale(dist_med, to = c(1, 0.4))  # proche médiane = opaque
+  ) %>%
+  ungroup()
+
+
+
+
+
+ggplot(df_box2, aes(x = value, y = Prediction_en)) +
+  
+  # 👉 BOXPLOT horizontal
+  geom_boxplot(
+    aes(color = Prediction_en),
+    width = 0.5,
+    linewidth = 0.6,
+    fill = NA,
+    outlier.shape = NA
+  ) +
+  
+  # 👉 POINTS si tu veux les réactiver
+  # geom_jitter(
+  #   aes(color = Prediction_en, alpha = alpha_val),
+  #   height = 0.15,
+  #   size = 1,
+  #   stroke = 0
+  # ) +
+  
+  ggh4x::facet_grid2(
+    rows = vars(conf_simple),
+    cols = vars(variable),
+    scales = "free_x",
+    independent = "x"
+    # switch = "y"
+  ) +
+  
+  scale_color_manual(values = palette_lits) +
+  scale_alpha_identity() +
+  
+  ggh4x::facetted_pos_scales(
+    x = list(
+      variable %in% c(
+        "Talweg slope (%)",
+        "Drainage area (km²)",
+        "Distance from source (km)"
+      ) ~ scale_x_log10(labels = scales::label_number())
+    )
+  ) +
+  
+  labs(x = NULL, y = NULL) +
+  
+  theme_classic(base_size = 11) +
+  
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    strip.text = element_text(size = 10, face = "bold"),
+    strip.text.y.right = element_text(angle = 0, size = 10, face = "bold"),
+    
+    axis.text.x = element_text(size = 8),
+    axis.text.y = element_text(size = 9),
+    
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.3),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    
+    panel.spacing = unit(1, "lines"),
+    
+    legend.position = "none"
+  )
+
+
+
+
+
+
+
+
+
+
+df_nuage <- resultat_conf %>%
+  filter(Prediction_en %in% c(
+                              # "Braided", "Wandering",
+                              "Passive meandering",
+                              # "Alternate bars",
+                              # "Sinuous with bars",
+                              # "Anabranching",
+                              # "Anastomosed",
+                              "Active meandering"
+  ),
+  !(Prediction_en == "Braided" & !gid_region %in% c(31, 16, 11, 33, 26)),
+  conf_simple %in% c("unconfined")
+  ) %>%
+  mutate(drainage_area = drainage_area,
+         drainage_area = ifelse(drainage_area < 1, 1, drainage_area),
+         mean_Slope_talweg = ifelse(mean_Slope_talweg < 0.0001, 0.0001, mean_Slope_talweg),
+         mean_Slope_VB = ifelse(mean_Slope_VB < 0.0001, 0.0001, mean_Slope_VB),
+         # mean_Slope_talweg = ifelse(mean_Slope_talweg > mean_Slope_VB, NA, mean_Slope_talweg),
+         # mean_Slope_VB = ifelse(mean_Slope_talweg > mean_Slope_VB, NA, mean_Slope_VB)
+  )
+
+starts <- df_nuage %>%
+  st_drop_geometry() %>%
+  group_by(axis) %>%
+  arrange(axis, desc(measure), .by_group = TRUE) %>%
+  mutate(
+    d_slope = abs(mean_Slope_VB - lag(mean_Slope_VB))
+  ) %>%
+  filter(d_slope > 0.002) %>%
+  slice_max(measure, n = 1, with_ties = FALSE) %>%
+  select(axis, measure_limit = measure)
+
+df_nuage <- df_nuage %>%
+  left_join(starts, by = "axis") %>%
+  filter(is.na(measure_limit) | measure <= measure_limit) %>%
+  select(-measure_limit)
+
+# df_nuage <- df_nuage %>%
+# mutate(
+#   mean_Slope_talweg = mean_Slope_talweg / 100,
+#   mean_Slope_VB = mean_Slope_VB / 100
+# )
+
+# st_write(df_nuage, "df_nuage1.gpkg")
+
+df_nuage_plot <- df_nuage %>%
+  mutate(
+    # écart signé à la droite x = y dans l'espace log-log
+    diff_diag = log10(mean_Slope_talweg / mean_Slope_VB),
+    
+    # intensité = distance absolue à la diagonale
+    dist_diag = abs(diff_diag),
+    
+    # version normalisée entre 0 et 1
+    intensity_diag = rescale(dist_diag, to = c(0, 1))
+  )
+
+df_nuage_plot <- df_nuage_plot %>%
+  mutate(
+    Prediction_en = factor(
+      Prediction_en,
+      levels = c(
+        "Active meandering",
+        "Passive meandering"
+      )
+    )
+  ) %>%
+  arrange(desc(Prediction_en))
+
+ggplot(
+  df_nuage_plot,
+  aes(
+    x = mean_Slope_VB,
+    y = mean_Slope_talweg,
+    # shape = Prediction_en,
+    color = Prediction_en
+  )
+) +
+  
+  geom_point(
+    size = 2,
+    alpha = 0.75,
+    stroke = 0.5
+  ) +
+  
+  # droite x = y
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed",
+    linewidth = 0.6,
+    color = "black"
+  ) +
+  
+  scale_x_log10(
+    breaks = scales::breaks_log(n = 5),
+    labels = scales::label_number(accuracy = 0.0001)
+  ) +
+  
+  scale_y_log10(
+    breaks = scales::breaks_log(n = 5),
+    labels = scales::label_number(accuracy = 0.0001)
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "Passive meandering" = "#2C5EAD",
+      "Active meandering" = "#d96c0e"
+    )
+  )+
+  
+  # scale_color_gradient2(
+  #   low = "#2166ac",      # sous la diagonale : y < x
+  #   mid = "#f7f7f7",      # proche de x = y
+  #   high = "#b2182b",     # au-dessus : y > x
+  #   midpoint = 0,
+  #   name = "Talweg vs\nvalley bottom"
+  # ) +
+  
+
+  labs(
+    x = "Slope of the valley bottom (m/m)",
+    y = "Slope of the talweg (m/m)",
+    color = "Channel planform",
+    shape = NULL
+  ) +
+  
+  theme_classic(base_size = 15) +
+  theme(
+    legend.text = element_text(size = 15),
+    legend.title = element_text(size = 14),
+    
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(size = 20),
+    
+    panel.grid.major = element_line(color = "grey90", linewidth = 0.3),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+
+
+
+
+
+
+
+df_box <- resultat_conf %>%
+  st_drop_geometry() %>%
+  filter(    
+    Prediction_en != "Reservoir",
+    Prediction_en != "Intermittent",
+    !(Prediction_en == "Braided" & !gid_region %in% c(31, 16, 11, 33, 26))
+  ) %>%
+  filter(!is.na(Prediction_en)) %>%
+  mutate(
+    mean_Slope_talweg = ifelse(mean_Slope_talweg < 0.0001, 0.0001, mean_Slope_talweg),
+    drainage_area = ifelse(drainage_area < 1, 1, drainage_area),
+    # measure = measure,
+    # distance depuis la source
+  ) %>%
+  group_by(axis) %>%
+  mutate( 
+    longueur_totale = sum(longueur_data, na.rm = TRUE),
+    measure_inverse = (longueur_totale - measure) ,
+    measure_max = max(measure, na.rm = TRUE) - measure, 
+    measure = measure_max / 1000
+  ) %>%
+  ungroup() %>%
+  # filter(axis == "2000784404") %>%
+  # select(axis, measure, measure_inverse, measure_max,longueur_data)
+  
+  select(Prediction_en, conf_simple,
+         mean_grassland_pc,
+         mean_natural_open_pc, mean_forest_pc, mean_built_environment_pc,
+         mean_crops_pc) %>%
+  pivot_longer(
+    cols = c(mean_grassland_pc,
+             mean_natural_open_pc, mean_forest_pc, mean_built_environment_pc,
+             mean_crops_pc),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    # variable = recode(
+    #   variable,
+    #   mean_Slope_talweg = "Talweg slope (%)",
+    #   measure = "Distance from source (km)",
+    #   drainage_area = "Drainage area (km²)"
+    # ),
+    conf_simple = recode(conf_simple,
+                         "confined" = "Confined",
+                         "partly confined" = "Partly confined",
+                         "unconfined" = "Unconfined",
+    ),
+    Prediction_en = factor(Prediction_en, levels = ordre_lits),
+    conf_simple = factor(conf_simple)   # important
+  )
+
+# 👉 calcul distance à la médiane (par groupe)
+df_box2 <- df_box %>%
+  group_by(Prediction_en, conf_simple, variable) %>%
+  mutate(
+    med = median(value, na.rm = TRUE),
+    dist_med = abs(value - med),
+    alpha_val = scales::rescale(dist_med, to = c(1, 0.4))  # proche médiane = opaque
+  ) %>%
+  ungroup()
+
+ggplot(df_box2, aes(x = Prediction_en, y = value)) +
+  
+  # 👉 BOXPLOT propre avec notch
+  geom_boxplot(
+    aes(color = Prediction_en),
+    width = 0.5,
+    # notch = TRUE,
+    linewidth = 0.6,
+    fill = NA,
+    outlier.shape = NA
+  ) +
+  
+  # 👉 POINTS (info clé)
+  # geom_jitter(
+  #   aes(color = Prediction_en, alpha = alpha_val),
+  #   width = 0.15,
+  #   size = 1,
+  #   stroke = 0
+  # ) +
+  
+  ggh4x::facet_grid2(
+    rows = vars(conf_simple),
+    cols = vars(variable),
+    scales = "free_y",
+    independent = "y",
+    switch = "y"
+  ) +
+  
+  scale_color_manual(values = palette_lits) +
+  scale_alpha_identity() +
+  
+  ggh4x::facetted_pos_scales(
+    y = list(
+      variable %in% c("Talweg slope (%)", "Drainage area (km²)",
+                      "Distance from source (km)") ~ 
+        scale_y_log10(labels = scales::label_number())
+    )
+  ) +
+  
+  labs(x = NULL, y = NULL) +
+  
+  theme_classic(base_size = 11) +
+  
+  
+  theme(
+    strip.placement = "outside",
+    strip.background = element_blank(),
+    strip.text = element_text(size = 10, face = "bold"),
+    
+    axis.text.x = element_text(angle = -45, hjust = 0, size = 9),
+    axis.text.y = element_text(size = 8),
+    
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    
+    panel.spacing = unit(1, "lines"),
+    
+    legend.position = "none"
+  )
+
+
+
+
+
+
+df_histo <- resultat_conf %>%
+st_drop_geometry() %>%
+  filter(
+    Prediction_en != "Reservoir",
+    Prediction_en != "Intermittent",
+    !(Prediction_en == "Braided" & !gid_region %in% c(31,16,11,33,26))
+  ) %>%
+  filter(!is.na(Prediction_en)) %>%
+  
+  select(
+    Prediction_en,
+    conf_simple,
+    mean_grassland_pc,
+    mean_natural_open_pc,
+    mean_forest_pc,
+    mean_built_environment_pc,
+    mean_crops_pc
+  ) %>%
+  
+  pivot_longer(
+    cols = starts_with("mean_"),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  
+  mutate(
+    variable = recode(
+      variable,
+      mean_grassland_pc = "Grassland",
+      mean_natural_open_pc = "Natural open",
+      mean_forest_pc = "Forest",
+      mean_built_environment_pc = "Built",
+      mean_crops_pc = "Crops"
+    ),
+    
+    conf_simple = recode(
+      conf_simple,
+      "confined" = "Confined",
+      "partly confined" = "Partly confined",
+      "unconfined" = "Unconfined"
+    ),
+    
+    Prediction_en = factor(Prediction_en, levels = ordre_lits)
+  ) %>%
+  
+  group_by(Prediction_en, conf_simple,variable) %>%
+  summarise(
+    value = mean(value, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+ggplot(df_histo,
+       aes(
+         y = Prediction_en,
+         x = value,
+         fill = variable
+       )) +
+  
+  geom_col(
+    position = "fill",
+    width = 0.8,
+    color = "white",
+    linewidth = 0.2
+  ) +
+  
+  facet_grid(
+    rows = vars(conf_simple),
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  
+  scale_x_continuous(
+    labels = scales::percent_format()
+  ) +
+  
+  labs(
+    x = "Adjacent land cover composition",
+    y = NULL,
+    fill = "Land cover"
+  ) +
+  
+  theme_classic(base_size = 11) +
+  
+  theme(
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold"),
+    
+    axis.text.y = element_text(size = 9),
+    
+    panel.spacing = unit(1, "lines"),
+    
+    legend.position = "bottom"
+  )
+
+
+
+
+
+
+
+df_resume <- resultat_conf %>%
+  filter(
+    Prediction_en %in% c("Braided", "Wandering", "Active meandering",
+                         "Passive meandering"),
+    conf_simple %in% c("unconfined")
+  ) %>%
+  mutate(drainage_area = drainage_area / 1000) %>%
+  group_by(Prediction_en) %>%
+  summarise(
+    mean_x = mean(drainage_area, na.rm = TRUE),
+    sd_x   = sd(drainage_area, na.rm = TRUE),
+    mean_y = mean(mean_AC, na.rm = TRUE),
+    sd_y   = sd(mean_AC, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(df_resume, aes(x = mean_x, y = mean_y, color = Prediction_en)) +
+  geom_errorbarh(aes(xmin = mean_x - sd_x, xmax = mean_x + sd_x),
+                 height = 0) +
+  geom_errorbar(aes(ymin = mean_y - sd_y, ymax = mean_y + sd_y),
+                width = 0) +
+  geom_point(size = 3)
+
+
+
+
+df_nuage <- resultat_conf %>%
+  filter(gid_region %in% c(31, 16, 11, 33, 26))
+
+ggplot(df_nuage, aes(x = drainage_area/1000, y = mean_AC, color = Prediction_en)) +
+  geom_point(alpha = 0.6) 
+
+
+
+
+
+# compraison méandre
+df_box <- resultat_conf %>%
+  filter(Prediction_en %in% c("Passive meandering", "Active meandering")) %>%
+  mutate(
+    Prediction_en = recode(
+      Prediction_en,
+      "Passive meandering" = "Passive",
+      "Active meandering" = "Active"
+    )
+  ) %>%
+  mutate(
+    mean_Slope_talweg = ifelse(mean_Slope_talweg < 0.0001, 0.0001, mean_Slope_talweg),
+    drainage_area = ifelse(drainage_area < 1, 1, drainage_area),
+    mean_AC = ifelse(mean_AC < 5, 5, mean_AC),
+    Sinuosity_meander_2 = ifelse(Sinuosity_meander_2 > 6, 6, Sinuosity_meander_2),
+    
+  ) %>%
+  group_by(axis) %>%
+  mutate( 
+    longueur_totale = sum(longueur_data, na.rm = TRUE),
+    measure_inverse = (longueur_totale - measure) ,
+    measure_max = max(measure, na.rm = TRUE) - measure, 
+    measure = measure_max / 1000
+  ) %>%
+  ungroup() %>%
+  select(Prediction_en, conf_simple,
+         mean_Slope_talweg, mean_elevation,
+         drainage_area, mean_AC
+  ) %>%
+  
+  pivot_longer(
+    cols = c(mean_Slope_talweg, mean_elevation,
+             drainage_area, mean_AC
+    ),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    category = paste(Prediction_en, conf_simple, sep = " - "),
+    category = factor(category, levels = c(
+      "Active - confined",
+      "Active - partly confined",
+      "Active - unconfined",
+      "Passive - confined",
+      "Passive - partly confined",
+      "Passive - unconfined"
+    ))
+  ) %>%
+  mutate(
+    variable = recode(
+      variable,
+      mean_Slope_talweg = "Talweg slope (%)",
+      mean_elevation = "Elevation (m)",
+      # mean_Slope_VB = "Valley bottom slope (%)",
+      drainage_area = "Drainage area (km²)",
+      mean_AC = "Active channel width (m)",
+      # mean_VB = "Valley bottom width (m)",
+      # Sinuosity_meander_2 = "Sinuosity index",
+      # measure = "Distance from source (km)"
+      # mean_meander_belt = "Meander belt width (m)"
+    )
+  )
+
+
+ggplot(df_box, aes(x = Prediction_en, y = value, fill = category)) +
+  geom_boxplot(
+    position = position_dodge(width = 0.75),
+    width = 0.65,
+    outlier.alpha = 0.3
+  ) +
+  facet_wrap(~ variable, scales = "free_y", ncol = 2) +
+  theme_minimal() +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "Confinement"
+  )+
+  
+  scale_fill_manual(
+    values = c(
+      "Active - confined" = "#A50026",
+      "Active - partly confined" = "#F46D43",
+      "Active - unconfined" = "#FDB863",
+      "Passive - confined" = "#084081",
+      "Passive - partly confined" = "#2B8CBE",
+      "Passive - unconfined" = "#7BCCC4"
+    )
+  ) +
+  # guides(fill = guide_legend(nrow = 2, byrow = TRUE)) +
+  scale_y_log10(labels = scales::label_number())+
+  theme(
+    text = element_text(size = 16),   # taille globale
+    # legend.position = "top",
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title = element_text(size = 16),
+    theme(legend.position = "none"),
+    # legend.text = element_text(size = 14),
+    # legend.title = element_text(size = 15),
+    strip.text = element_text(size = 15, face = "bold")
+  )
+
+
+

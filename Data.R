@@ -45,11 +45,12 @@ library(corrplot)
 library(scales)
 library(ragg)
 library(here)
+# detach(qgisprocess::qgis_process, unload = TRUE) # pour éviter les conflits de fonctions avec d'autres packages)
 # Sys.setenv(
-#   R_QGISPROCESS_PATH = "C:/Program Files/QGIS 3.44.9/bin/qgis_process-qgis-ltr.bat",
-#   QGIS_CUSTOM_CONFIG_PATH = tempdir()
+  # R_QGISPROCESS_PATH = "C:/Program Files/QGIS 3.44.9/bin/qgis_process-qgis-ltr.bat",
+  # QGIS_CUSTOM_CONFIG_PATH = tempdir()
 # )
-# 
+
 # qgisprocess::qgis_configure()
 # qgisprocess::qgis_session_info()
 # qgisprocess::qgis_enable_plugins()
@@ -131,6 +132,8 @@ surface_drainee <- rbind(surface_drainee_rhone,
                          surface_drainee_meuse,
                          surface_drainee_bretagne
 )
+
+# st_write(surface_drainee, "surface_drainee.csv", delete_layer = TRUE) # Export des données nettoyées en shapefile)
 
 # ------------------------------------------------
 # 6. Import des meander belt par bassin

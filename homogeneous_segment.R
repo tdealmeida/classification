@@ -1,5 +1,3 @@
-library(changepoint)
-library(stringr)
 
 length(unique(metrique$axis))
 
@@ -9,6 +7,15 @@ metrique <- metrique %>%
     log_VB = log(ifelse(VB == 0, 0.1, VB)+1),
     log_SIN = log(ifelse(angle_deg == 0, 0.1, angle_deg)+1)
   )
+
+
+AC <- metrique %>%
+  group_by(axis) %>%
+  arrange(measure) %>%
+  summarize(run_pelt_papier1(log_AC)) %>%
+  filter(cpt > 0) %>%
+  mutate(source = "AC")
+
 
 AC <- metrique %>%
   group_by(axis) %>%

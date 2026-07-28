@@ -8,31 +8,11 @@ library(circlize)
 #   mutate(CD = sum_conf_degree/sum_length
 #            )
 
-resultat_final <- resultat_final %>%
+
+resultat_final_filtre <- resultat_final_filtre %>%
   mutate(CD = sum_conf_degree / sum_length)
 
-resultat_final <- resultat_final %>%
-  mutate(
-    Prediction_en = recode(Prediction,
-                           "rectiligne"        = "Straight",
-                           "rectiligne bars"   = "Alternate bars",
-                           "sinueux"           = "Sinuous",
-                           # "alternate bars"  = "Alternate bars",
-                           "sinueux bars"      = "Sinuous with bars",
-                           "meandre actif"     = "Active meandering",
-                           "meandre passif"    = "Passive meandering",
-                           "tresse"            = "Braided",
-                           # "tresse vegetal"  = "Vegetated braided",
-                           "divagant"          = "Wandering",
-                           "anastomose"        = "Anastomosed",
-                           "anabranche"        = "Anabranching",
-                           "reservoir"           = "Reservoir",
-                           "intermittent"      = "Intermittent",
-    )
-  )
-
-
-resultat_conf <- resultat_final %>%
+resultat_conf <- resultat_final_filtre %>%
   mutate(
     # idx_conf_inverse2 = case_when(
     #   mean_AC == 0 & mean_VB > 0 ~ 0,
@@ -50,7 +30,7 @@ resultat_conf <- resultat_final %>%
     ),
     
     type_multi = Prediction %in% c(
-      "tresse", "tresse vegetal",
+      "tresse", "tresse vegetal","ile eparses",
       "divagant", "anastomose", "anabranche"
     ),
     
@@ -99,16 +79,17 @@ resultat_conf <- resultat_final %>%
     conf_detaille = case_when(
       Prediction_en %in% c(
         "Straight",
-        "Straight with bars",
+        "Straight with alternate bars",
         "Sinuous",
         "Sinuous with bars",
-        "Alternate bars",
+        # "Alternate bars",
         "Passive meandering",
         "Active meandering",
         "Braided",
         "Wandering",
         "Anastomosed",
-        "Anabranching"
+        "Anabranching",
+        "Sparse islands"
         
       ) ~ paste(Prediction_en, conf_simple),
       
@@ -131,6 +112,9 @@ st_write(resultat_conf, "TGH_conf.gpkg", delete_layer = TRUE) # Export des donn√
 
 # resultat_final <- st_read("TGH_RF_10.gpkg")
 # resultat_conf <- st_read("TGH_RF_total_conf.gpkg")
+
+
+
 
 
 
